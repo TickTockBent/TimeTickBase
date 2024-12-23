@@ -44,7 +44,8 @@ describe("TimeToken distribution model", function () {
     );
 
     // 2) Simulate 2 hours passing (7200 seconds)
-    await increaseTime(ONE_HOUR_SECONDS * 2);
+    const timeIncrease = ONE_HOUR_SECONDS * 2;
+    await increaseTime(timeIncrease);
 
     // 3) Call mintBatch
     // No stakers => dev gets 70%, stability gets 30%
@@ -58,8 +59,9 @@ describe("TimeToken distribution model", function () {
       await stabilityPool.getAddress()
     );
 
-    const expectedDevBalance = ethers.parseUnits("5040", 18); // 70% of 7200
-    const expectedStabilityBalance = ethers.parseUnits("2160", 18); // 30% of 7200
+    const totalTokens = ethers.toBigInt(timeIncrease) * ethers.parseUnits("1", 18);
+    const expectedDevBalance = (totalTokens * 70n) / 100n;
+    const expectedStabilityBalance = (totalTokens * 30n) / 100n;
     
     expect(devBalance).to.be.closeTo(expectedDevBalance, ethers.parseUnits("2", 18));
     expect(stabilityBalance).to.be.closeTo(expectedStabilityBalance, ethers.parseUnits("2", 18));
@@ -96,6 +98,7 @@ describe("TimeToken distribution model", function () {
 
     // 4) Let more time pass to accumulate tokens
     await increaseTime(ONE_HOUR_SECONDS * 2);
+    // Dev still gets 70% because users haven't staked yet
     await timeToken.mintBatch();
 
     // Transfer more tokens to enable staking
@@ -116,6 +119,7 @@ describe("TimeToken distribution model", function () {
 
     // 5) Move time forward, then mint again
     await increaseTime(ONE_HOUR_SECONDS);
+    // Dev still gets 70% because this is first batch after staking (lastHours = 0)
     await timeToken.mintBatch();
 
     // 6) Check balances
@@ -123,10 +127,14 @@ describe("TimeToken distribution model", function () {
     const user2Balance = await timeToken.balanceOf(await user2.getAddress());
     const devBalAfter = await timeToken.balanceOf(await devFund.getAddress());
 
-    // Calculate expected dev balance using BigInt arithmetic
+    // Calculate expected dev balance using BigInt arithmetic:
+    // First mint (2hr): 70% of 7200 tokens = 5040
+    // Second mint (2hr): 70% of 7200 tokens = 5040
+    // Third mint (1hr): 70% of 3600 tokens = 2520 (still 70% because first batch after staking)
+    // Less transfers: 8000 tokens (500+500+3500+3500)
     const secondMintBigInt = ethers.toBigInt(ethers.parseUnits("5040", 18));  // 70% of 7200
-    const thirdMintBigInt = ethers.toBigInt(ethers.parseUnits("720", 18));    // 20% of 3600
-    const totalTransfersBigInt = ethers.toBigInt(ethers.parseUnits("8000", 18)); // 500+500+3500+3500
+    const thirdMintBigInt = ethers.toBigInt(ethers.parseUnits("2520", 18));   // 70% of 3600
+    const totalTransfersBigInt = ethers.toBigInt(ethers.parseUnits("8000", 18)); // Total transfers
     const devBalBeforeBigInt = ethers.toBigInt(devBalBefore);
 
     const expectedFinalDevBalance = devBalBeforeBigInt + secondMintBigInt + thirdMintBigInt - totalTransfersBigInt;
@@ -135,7 +143,6 @@ describe("TimeToken distribution model", function () {
     expect(user1Balance).to.be.gt(0);
     expect(user2Balance).to.be.gt(0);
 
-    // Print out balances for verification
     console.log("User1 final balance:", user1Balance.toString());
     console.log("User2 final balance:", user2Balance.toString());
     console.log("Dev final balance:", devBalAfter.toString());
