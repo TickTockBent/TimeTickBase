@@ -123,12 +123,13 @@ describe("TimeToken distribution model", function () {
     const user2Balance = await timeToken.balanceOf(await user2.getAddress());
     const devBalAfter = await timeToken.balanceOf(await devFund.getAddress());
 
-    // Calculate expected dev balance:
-    // Initial (2hr no stakers) + Second mint (2hr no stakers) + Third mint (1hr with stakers) - Total transfers
-    const expectedFinalDevBalance = devBalBefore
-      .add(ethers.parseUnits("5040", 18))  // Second 2-hour mint (70% of 7200)
-      .add(ethers.parseUnits("720", 18))   // Third 1-hour mint (20% of 3600)
-      .sub(ethers.parseUnits("8000", 18)); // Total transfers (500+500+3500+3500)
+    // Calculate expected dev balance using BigInt arithmetic
+    const secondMintBigInt = ethers.toBigInt(ethers.parseUnits("5040", 18));  // 70% of 7200
+    const thirdMintBigInt = ethers.toBigInt(ethers.parseUnits("720", 18));    // 20% of 3600
+    const totalTransfersBigInt = ethers.toBigInt(ethers.parseUnits("8000", 18)); // 500+500+3500+3500
+    const devBalBeforeBigInt = ethers.toBigInt(devBalBefore);
+
+    const expectedFinalDevBalance = devBalBeforeBigInt + secondMintBigInt + thirdMintBigInt - totalTransfersBigInt;
 
     expect(devBalAfter).to.be.closeTo(expectedFinalDevBalance, ethers.parseUnits("2", 18));
     expect(user1Balance).to.be.gt(0);
