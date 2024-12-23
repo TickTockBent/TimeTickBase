@@ -1,0 +1,106 @@
+import { ethers } from "hardhat";
+import { formatUnits } from "ethers";
+import * as fs from "fs";
+
+async function loadDeploymentInfo() {
+    try {
+        const data = fs.readFileSync('deployment-info.json', 'utf8');
+        return JSON.parse(data);
+    } catch (error) {
+        console.error("Could not load deployment info. Have you deployed the contract?");
+        throw error;
+    }
+}
+
+async function main() {
+    const deployInfo = await loadDeploymentInfo();
+    const [deployer, devFund, stabilityPool] = await ethers.getSigners();
+
+    console.log("\nUsing addresses:");
+    console.log("Dev Fund:", devFund.address);
+    console.log("Stability Pool:", stabilityPool.address);
+    console.log("Contract:", deployInfo.contractAddress);
+
+    // Verify addresses match deployment
+    if (devFund.address !== deployInfo.devFundAddress) {
+        throw new Error("Dev fund signer doesn't match deployed address");
+    }
+    if (stabilityPool.address !== deployInfo.stabilityPoolAddress) {
+        throw new Error("Stability pool signer doesn't match deployed address");
+    }
+
+    const TimeToken = await ethers.getContractFactory("TimeToken");
+    const timeToken = await TimeToken.attach(deployInfo.contractAddress);
+
+    // Get initial state
+    console.log("\nInitial State:");
+    const initialDevBalance = await timeToken.balanceOf(devFund.address);
+    const initialStabilityBalance = await timeToken.balanceOf(stabilityPool.address);
+    
+    console.log("Dev Fund Balance:", formatUnits(initialDevBalance, 18), "TTB");
+    console.log("Stability Pool Balance:", formatUnits(initialStabilityBalance, 18), "TTB");
+
+    // Simulate time passage (1 hour plus a bit to ensure we're past the batch duration)
+    const minutesToSimulate = 65;  // 1 hour + 5 minutes
+    const secondsToSimulate = minutesToSimulate * 60;
+    
+    console.log(`\nSimulating time passage (${minutesToSimulate} minutes)...`);
+    await ethers.provider.send("evm_increaseTime", [secondsToSimulate]);
+    await ethers.provider.send("evm_mine", []);
+
+    // Perform mint
+    console.log("Calling mintBatch()...");
+    const mintTx = await timeToken.mintBatch();
+    const receipt = await mintTx.wait();
+
+    // Get final state
+    const finalDevBalance = await timeToken.balanceOf(devFund.address);
+    const finalStabilityBalance = await timeToken.balanceOf(stabilityPool.address);
+    
+    // Calculate changes
+    const devChange = Number(formatUnits(finalDevBalance - initialDevBalance, 18));
+    const stabilityChange = Number(formatUnits(finalStabilityBalance - initialStabilityBalance, 18));
+    
+    console.log("\nFinal State:");
+    console.log("Dev Fund Balance:", formatUnits(finalDevBalance, 18), "TTB");
+    console.log("Stability Pool Balance:", formatUnits(finalStabilityBalance, 18), "TTB");
+    
+    console.log("\nChanges:");
+    console.log("Dev Fund Change:", devChange.toFixed(2), "TTB");
+    console.log("Stability Pool Change:", stabilityChange.toFixed(2), "TTB");
+
+    // Verify distribution percentages
+    const totalMinted = devChange + stabilityChange;
+    const devPercentage = (devChange / totalMinted) * 100;
+    const stabilityPercentage = (stabilityChange / totalMinted) * 100;
+
+    console.log("\nDistribution Percentages:");
+    console.log("Dev Fund:", devPercentage.toFixed(1), "% (expected 70%)");
+    console.log("Stability Pool:", stabilityPercentage.toFixed(1), "% (expected 30%)");
+
+    // Log events
+    console.log("\nEvents Emitted:");
+    const fundDistEvents = receipt.logs.filter(
+        log => {
+            try {
+                return timeToken.interface.parseLog(log).name === "FundDistribution";
+            } catch {
+                return false;
+            }
+        }
+    );
+
+    fundDistEvents.forEach(log => {
+        const parsed = timeToken.interface.parseLog(log);
+        console.log("FundDistribution:", {
+            devAmount: formatUnits(parsed.args.devAmount, 18),
+            stabilityAmount: formatUnits(parsed.args.stabilityAmount, 18),
+            timestamp: new Date(Number(parsed.args.timestamp) * 1000).toISOString()
+        });
+    });
+}
+
+main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+});

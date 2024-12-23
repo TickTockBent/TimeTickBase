@@ -1,0 +1,29 @@
+# Node modules and environment files
+node_modules
+.env
+
+# Project directories to ignore (except specified folders)
+/*
+!/contracts/
+!/documentation/
+!/scripts/
+
+# Keep important config files
+!/README.md
+!/hardhat.config.ts
+!/tsconfig.json
+!/.gitignore
+
+# Hardhat files
+cache
+coverage
+coverage.json
+hardhat.config.ts
+tsconfig.json
+
+# TypeChain files
+typechain
+typechain-types
+
+# Hardhat Ignition files
+ignition/deployments/chain-31337
