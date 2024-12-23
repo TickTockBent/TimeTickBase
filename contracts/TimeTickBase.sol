@@ -327,4 +327,58 @@ contract TimeToken is ERC20 {
 
     //-------------------------------------------------------------------------
     // Validation Logic: ensures total supply matches 1 TTB per second
-    //-------
+    //-------------------------------------------------------------------------
+    function validateSupply()
+        external
+        view
+        returns (
+            bool valid,
+            uint256 totalSeconds,
+            uint256 expectedSupply,
+            uint256 currentSupply,
+            uint256 difference
+        )
+    {
+        totalSeconds = block.timestamp - genesisTime;
+        expectedSupply = totalSeconds * (1 ether);
+        currentSupply = totalSupply();
+
+        if (expectedSupply >= currentSupply) {
+            difference = expectedSupply - currentSupply;
+        } else {
+            difference = currentSupply - expectedSupply;
+        }
+
+        valid = (difference == 0);
+        return (valid, totalSeconds, expectedSupply, currentSupply, difference);
+    }
+
+    //-------------------------------------------------------------------------
+    // (Optional) Check if user has staked at least 1 stake-hour
+    //-------------------------------------------------------------------------
+    function isValidTimekeeper(address account) public view returns (bool) {
+        return (stakedHours[account] >= 1 && stakeStartTime[account] <= lastMintTime);
+    }
+
+    //-------------------------------------------------------------------------
+    // (Optional) Return all 'valid' timekeepers
+    //-------------------------------------------------------------------------
+    function getValidTimekeepers() external view returns (address[] memory) {
+        uint256 count;
+        for (uint256 i = 0; i < _allStakers.length; i++) {
+            if (isValidTimekeeper(_allStakers[i])) {
+                count++;
+            }
+        }
+
+        address[] memory valid = new address[](count);
+        uint256 index = 0;
+        for (uint256 i = 0; i < _allStakers.length; i++) {
+            if (isValidTimekeeper(_allStakers[i])) {
+                valid[index] = _allStakers[i];
+                index++;
+            }
+        }
+        return valid;
+    }
+}
