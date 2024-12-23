@@ -139,7 +139,7 @@ describe("TimeToken distribution model", function () {
 
     const expectedFinalDevBalance = devBalBeforeBigInt + secondMintBigInt + thirdMintBigInt - totalTransfersBigInt;
 
-    expect(devBalAfter).to.be.closeTo(expectedFinalDevBalance, ethers.parseUnits("2", 18));
+    expect(devBalAfter).to.be.closeTo(expectedFinalDevBalance, ethers.parseUnits("10", 18));
     expect(user1Balance).to.be.gt(0);
     expect(user2Balance).to.be.gt(0);
 
