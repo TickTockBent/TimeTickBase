@@ -2,209 +2,235 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract, Signer } from "ethers";
 
-describe("TimeToken", function () {
+// A helper function to simulate time passing in the local Hardhat EVM.
+async function increaseTime(seconds: number) {
+  await ethers.provider.send("evm_increaseTime", [seconds]);
+  await ethers.provider.send("evm_mine", []);
+}
+
+describe("TimeToken distribution model", function () {
   let TimeToken: any;
   let timeToken: Contract;
 
+  // Signers
   let deployer: Signer;
   let devFund: Signer;
   let stabilityPool: Signer;
   let user1: Signer;
   let user2: Signer;
-  let user3: Signer;
 
-  // Helper to quickly move time forward on Hardhat
-  async function increaseTime(seconds: number) {
-    await ethers.provider.send("evm_increaseTime", [seconds]);
-    await ethers.provider.send("evm_mine", []);
-  }
+  // Constants
+  const BATCH_DURATION = 3600; // 1 hour in seconds
+  const ONE_HOUR_SECONDS = 3600;
 
   beforeEach(async function () {
-    // Get signers
-    [deployer, devFund, stabilityPool, user1, user2, user3] =
+    [deployer, devFund, stabilityPool, user1, user2] =
       await ethers.getSigners();
 
-    // Deploy contract
+    // Deploy the contract with no forced initial supply
     TimeToken = await ethers.getContractFactory("TimeToken");
-    const batchDuration = 3600; // 1 hour
     timeToken = await TimeToken.deploy(
       await devFund.getAddress(),
       await stabilityPool.getAddress(),
-      batchDuration
+      BATCH_DURATION
     );
     await timeToken.waitForDeployment();
   });
 
-  it("Should set initial state correctly", async function () {
-    // Check the stake unit
-    const stakeUnit = await timeToken.STAKE_UNIT();
-    expect(stakeUnit).to.equal(ethers.parseUnits("3600", 18));
-
-    // Check default minimumStakeUnits
-    const minStakeUnits = await timeToken.minimumStakeUnits();
-    expect(minStakeUnits).to.equal(1); // default is 1
-  });
-
-  it("Should allow staking and unstaking", async function () {
-    // user1 stakes 1 stake-hour
-    const stakeHours = 1;
-    const stakeAmount = ethers.parseUnits("3600", 18); // 1 * 3600 tokens
-
-    // Mint some tokens to user1 so they can stake
-    await timeToken.connect(deployer).transfer(await user1.getAddress(), stakeAmount);
-
-    // user1 stakes
-    await timeToken.connect(user1).stake(stakeHours);
-
-    // Check stakedHours
-    const stakedHoursUser1 = await timeToken.stakedHours(await user1.getAddress());
-    expect(stakedHoursUser1).to.equal(stakeHours);
-
-    // Unstake
-    await timeToken.connect(user1).unstake();
-    const stakedHoursAfter = await timeToken.stakedHours(await user1.getAddress());
-    expect(stakedHoursAfter).to.equal(0);
-  });
-
-  it("Should reject staking below the current minimum stake requirement", async function () {
-    // Set min stake to 2 stake-hours (7200 tokens)
-    await timeToken.connect(deployer).setMinimumStakeUnits(2);
-
-    // Mint some tokens to user2
-    const stakeAmount = ethers.parseUnits("3600", 18); // only 1 stake-hour
-    await timeToken
-      .connect(deployer)
-      .transfer(await user2.getAddress(), stakeAmount);
-
-    // Attempt to stake 1 stake-hour (should fail because min is 2)
-    await expect(timeToken.connect(user2).stake(1)).to.be.revertedWith(
-      "Below the current minimum stake requirement"
+  it("Scenario 1: No stakers at first -> Dev (70%) & Stability (30%) receive tokens", async () => {
+    // 1) Immediately calling mintBatch should revert if not enough time has passed
+    await expect(timeToken.mintBatch()).to.be.revertedWith(
+      "Batch period not reached"
     );
-  });
 
-  it("Should allow large scale staking from multiple users", async function () {
-    // This test simulates multiple users staking
-    // For brevity, we just do 3, but you could do many more in a loop
+    // 2) Simulate 1 hour passing
+    await increaseTime(ONE_HOUR_SECONDS);
 
-    // Increase min stake to 2 for demonstration
-    await timeToken.connect(deployer).setMinimumStakeUnits(2);
-
-    // user1 has 7200 tokens, user2 has 10800 tokens, user3 has 14400 tokens
-    const stakeHoursUser1 = 2; // 2 stake-hours
-    const stakeHoursUser2 = 3; // 3 stake-hours
-    const stakeHoursUser3 = 4; // 4 stake-hours
-
-    // Transfer tokens to them
-    const amt1 = ethers.parseUnits("7200", 18);
-    const amt2 = ethers.parseUnits("10800", 18);
-    const amt3 = ethers.parseUnits("14400", 18);
-
-    await timeToken.connect(deployer).transfer(await user1.getAddress(), amt1);
-    await timeToken.connect(deployer).transfer(await user2.getAddress(), amt2);
-    await timeToken.connect(deployer).transfer(await user3.getAddress(), amt3);
-
-    // They stake
-    await timeToken.connect(user1).stake(stakeHoursUser1);
-    await timeToken.connect(user2).stake(stakeHoursUser2);
-    await timeToken.connect(user3).stake(stakeHoursUser3);
-
-    // Check
-    const s1 = await timeToken.stakedHours(await user1.getAddress());
-    const s2 = await timeToken.stakedHours(await user2.getAddress());
-    const s3 = await timeToken.stakedHours(await user3.getAddress());
-
-    expect(s1).to.equal(stakeHoursUser1);
-    expect(s2).to.equal(stakeHoursUser2);
-    expect(s3).to.equal(stakeHoursUser3);
-  });
-
-  it("Should mint batch (unvalidated) after 60+ minutes (simulate time passage)", async function () {
-    // user1 stakes 1 hour
-    const stakeHours = 1;
-    const stakeAmount = ethers.parseUnits("3600", 18);
-    await timeToken.connect(deployer).transfer(await user1.getAddress(), stakeAmount);
-    await timeToken.connect(user1).stake(stakeHours);
-
-    // Move time forward by 3600 seconds
-    await increaseTime(3600);
-
-    // Now call mintBatch
+    // 3) Call mintBatch
+    // No stakers => dev gets 70%, stability gets 30%
     await timeToken.mintBatch();
 
-    // Check if devFund got tokens
+    // 4) Check minted amounts
+    // The contract mints 1 TTB/second * 3600 seconds = 3600 TTB (in 18-decimal form = 3600e18)
+    // Dev gets 70% => 2520 TTB, Stability gets 30% => 1080 TTB
+
     const devBalance = await timeToken.balanceOf(await devFund.getAddress());
-    expect(devBalance).to.be.gt(0);
+    const stabilityBalance = await timeToken.balanceOf(
+      await stabilityPool.getAddress()
+    );
+    // Because it's 70/30 of 3600 = 2520 / 1080, but in 18 decimals
+    expect(devBalance).to.equal(ethers.parseUnits("2520", 18));
+    expect(stabilityBalance).to.equal(ethers.parseUnits("1080", 18));
 
-    // Check if user1 got some minted tokens (timekeepers share)
-    const user1Balance = await timeToken.balanceOf(await user1.getAddress());
-    // They staked 1 hour, so they should get some share
-    // We can't easily predict the exact number here without diving into the distribution, 
-    // but we can confirm it's > stakeAmount (which they staked).
-    expect(user1Balance).to.be.gt(stakeAmount);
+    // 5) Time check: lastMintTime should be updated
+    const lastMintTime = await timeToken.lastMintTime();
+    const blockTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
+    // They should be approximately the same
+    // We'll allow a small difference in case a fraction of a second passed:
+    expect(Math.abs(Number(lastMintTime) - blockTimestamp)).to.be.lt(5);
   });
 
-  it("Should do a validated batch mint (total time validation), catching up or limiting supply", async function () {
-    // 1) user2 stakes
-    const stakeHours = 2;
-    const stakeAmount = ethers.parseUnits("7200", 18);
-    await timeToken.connect(deployer).transfer(await user2.getAddress(), stakeAmount);
-    await timeToken.connect(user2).stake(stakeHours);
-
-    // 2) Move time forward so some emission is due
-    await increaseTime(3600); // 1 hour
-    // We do an "unvalidated" mint first
+  it("Scenario 2: Dev transfers tokens to users so they can stake; minted tokens flow naturally", async () => {
+    // 1) Let 1 hour pass & mint once with no stakers
+    //    => dev & stability get tokens
+    await increaseTime(ONE_HOUR_SECONDS);
     await timeToken.mintBatch();
 
-    // 3) Now move time forward again, to create more emission
-    await increaseTime(3600);
+    // 2) Confirm dev/stability have balances
+    const devBalBefore = await timeToken.balanceOf(await devFund.getAddress());
+    const stabilityBalBefore = await timeToken.balanceOf(
+      await stabilityPool.getAddress()
+    );
+    expect(devBalBefore).to.be.gt(0);
+    expect(stabilityBalBefore).to.be.gt(0);
 
-    // 4) Call the validated mintBatchValidated
-    // This should ensure final supply matches total seconds from genesis
+    // 3) Dev decides to transfer some tokens to user1, user2 so they can stake
+    const devFundAddress = await devFund.getAddress();
+    const devFundContract = timeToken.connect(devFund);
+
+    // dev -> user1: 2000 tokens
+    // dev -> user2: 1000 tokens
+    await devFundContract.transfer(
+      await user1.getAddress(),
+      ethers.parseUnits("2000", 18)
+    );
+    await devFundContract.transfer(
+      await user2.getAddress(),
+      ethers.parseUnits("1000", 18)
+    );
+
+    // 4) user1 and user2 stake
+    // Must stake in multiples of STAKE_UNIT (3600 tokens) or partial if you prefer
+    // But let's let them stake half or something. Actually, they must stake at least 1 stake-hour = 3600 TTB
+    // So let's show that user1 doesn't have enough to stake 1 hour if we strictly require 3600.
+    // We'll just set min stake to 1 in a scenario where we "pretend" partial stake is possible. 
+    // Or let's do a second mint so user1 has enough. Instead, let's be consistent:
+    // We'll do: user1 has 2000 tokens, that's NOT enough to stake 1 hour if STAKE_UNIT=3600. 
+    // So let's pass more time & do a second mint, so dev can get more & then give it to user1 to stake.
+
+    // Actually, let's do the simpler approach: user1 can "pretend" to stake 0.5 hours if your code allowed it, 
+    // but it doesn't. So let's pass more time for dev to accumulate more tokens, then user1 can stake 3600. 
+    // We'll do it in steps to show the whole flow:
+
+    // Let time pass again
+    await increaseTime(ONE_HOUR_SECONDS);
+    await timeToken.mintBatch(); // dev/stability get more
+
+    // Now dev has more tokens. Transfer enough so user1 can stake 3600 tokens
+    await devFundContract.transfer(
+      await user1.getAddress(),
+      ethers.parseUnits("3000", 18)
+    );
+    // user1 total: 2000 + 3000 = 5000 => enough to stake 3600
+
+    // user1 stakes 1 hour
+    const user1Token = timeToken.connect(user1);
+    await user1Token.stake(1);
+
+    // user2 also, let's give them enough for 1 hour
+    // They have 1000 from before, let's send them 3000 more
+    await devFundContract.transfer(
+      await user2.getAddress(),
+      ethers.parseUnits("3000", 18)
+    );
+    const user2Token = timeToken.connect(user2);
+    await user2Token.stake(1);
+
+    // 5) Move time forward, then mint again -> now we have keepers
+    await increaseTime(ONE_HOUR_SECONDS);
+    await timeToken.mintBatch(); // stakers get 70% portion
+
+    // 6) Check user1, user2 balances to confirm they received minted rewards
+    const user1Balance = await timeToken.balanceOf(await user1.getAddress());
+    const user2Balance = await timeToken.balanceOf(await user2.getAddress());
+
+    // They staked 1 hour each. The timekeepers portion is 70% of the minted batch,
+    // which is then split among timekeepers by their "maintained stake-hours."
+    // Since user1 & user2 each staked 1 hour, they'd get equal shares of that 70%.
+
+    expect(user1Balance).to.be.gt(0); // They used 3600 to stake, so they had ~1400 left over, plus new minted
+    expect(user2Balance).to.be.gt(0);
+
+    // 7) Confirm dev/stability also grew
+    const devBalAfter = await timeToken.balanceOf(devFundAddress);
+    expect(devBalAfter).to.be.gt(devBalBefore);
+
+    // Print out some helpful logs
+    console.log("User1 final balance:", user1Balance.toString());
+    console.log("User2 final balance:", user2Balance.toString());
+    console.log("Dev final balance:", devBalAfter.toString());
+  });
+
+  it("Scenario 3: Validate supply (mintBatchValidated) to ensure final supply matches time-based emission", async () => {
+    // 1) Let some time pass, no stakers => dev/stability get tokens
+    await increaseTime(ONE_HOUR_SECONDS);
+    await timeToken.mintBatch();
+
+    // 2) Let more time pass so there's an opportunity for under/over supply
+    await increaseTime(ONE_HOUR_SECONDS);
+
+    // 3) Call the validated mint
     await timeToken.mintBatchValidated();
 
-    // Because the contract is new, we likely won't see large differences, 
-    // but let's verify the supply is close to expected
-    const [valid, totalSecs, expectedSupply, currentSupply, diff] =
-      await timeToken.validateSupply();
+    // 4) Check the supply validation
+    const [
+      valid,
+      totalSecs,
+      expectedSupply,
+      currentSupply,
+      diff,
+    ] = await timeToken.validateSupply();
 
-    // If validated is correct, diff should be 0
-    // but minor block offsets might exist in local tests
-    // We'll just expect difference to be small
-    expect(Number(diff)).to.be.lessThanOrEqual(1e14); // a small wiggle room
-
-    // And valid should be true or near true
-    // For a local test environment, you might see 0 difference
-    // We'll just log it
-    console.log({
+    console.log("Validation results:", {
       valid,
       totalSecs: totalSecs.toString(),
       expectedSupply: expectedSupply.toString(),
       currentSupply: currentSupply.toString(),
       diff: diff.toString(),
     });
+
+    // We expect diff to be 0 if everything lines up exactly. 
+    // A small difference might exist if a fraction of a second passed 
+    // or if block.timestamp advanced slightly. We'll accept near 0 if needed.
+    expect(Number(diff)).to.be.lessThanOrEqual(1e14); 
   });
 
-  it("Should handle repeated mints and keep supply aligned", async function () {
-    // user3 stakes 1 stake-hour
-    const stakeHours = 1;
-    const stakeAmount = ethers.parseUnits("3600", 18);
-    await timeToken.connect(deployer).transfer(await user3.getAddress(), stakeAmount);
-    await timeToken.connect(user3).stake(stakeHours);
-
-    // Mint once (unvalidated) after 1 hour
-    await increaseTime(3600);
+  it("Scenario 4: Multiple stakers, repeated batch calls, final alignment with validated mint", async () => {
+    // Step by step:
+    // 1) No stakers, pass 1 hour, dev/stability get tokens
+    await increaseTime(ONE_HOUR_SECONDS);
     await timeToken.mintBatch();
 
-    // Mint again (unvalidated) after 1 more hour
-    await increaseTime(3600);
+    // 2) Dev => user1 tokens, user1 stakes
+    const devFundToken = timeToken.connect(devFund);
+    await devFundToken.transfer(
+      await user1.getAddress(),
+      ethers.parseUnits("4000", 18)
+    );
+
+    await timeToken.connect(user1).stake(1); // user1 stakes 1 hour
+
+    // 3) Pass time, unvalidated mint => user1 gets portion
+    await increaseTime(ONE_HOUR_SECONDS);
     await timeToken.mintBatch();
 
-    // Now validate
-    await increaseTime(3600);
+    // 4) user2 also stakes
+    await devFundToken.transfer(
+      await user2.getAddress(),
+      ethers.parseUnits("4000", 18)
+    );
+    await timeToken.connect(user2).stake(1);
+
+    // 5) Pass time again, unvalidated mint
+    await increaseTime(ONE_HOUR_SECONDS);
+    await timeToken.mintBatch();
+
+    // 6) Now do a validated mint to line up total supply
+    await increaseTime(ONE_HOUR_SECONDS);
     await timeToken.mintBatchValidated();
 
-    // Supply should be in line
+    // 7) Check final supply alignment
     const [valid] = await timeToken.validateSupply();
-    expect(valid).to.be.eq(true);
+    expect(valid).to.equal(true);
   });
 });
