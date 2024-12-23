@@ -44,7 +44,7 @@ describe("TimeToken distribution model", function () {
     );
 
     // 2) Simulate 1 hour passing
-    await increaseTime(ONE_HOUR_SECONDS);
+    await increaseTime(ONE_HOUR_SECONDS * 2);
 
     // 3) Call mintBatch
     // No stakers => dev gets 70%, stability gets 30%
