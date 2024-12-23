@@ -75,7 +75,7 @@ describe("TimeToken distribution model", function () {
     await increaseTime(ONE_HOUR_SECONDS * 2);
     await timeToken.mintBatch();
 
-    // 2) Confirm dev/stability have balances
+    // 2) Record initial balances
     const devBalBefore = await timeToken.balanceOf(await devFund.getAddress());
     const stabilityBalBefore = await timeToken.balanceOf(
       await stabilityPool.getAddress()
@@ -123,10 +123,18 @@ describe("TimeToken distribution model", function () {
     const user2Balance = await timeToken.balanceOf(await user2.getAddress());
     const devBalAfter = await timeToken.balanceOf(await devFund.getAddress());
 
+    // Calculate expected dev balance:
+    // Initial (2hr no stakers) + Second mint (2hr no stakers) + Third mint (1hr with stakers) - Total transfers
+    const expectedFinalDevBalance = devBalBefore
+      .add(ethers.parseUnits("5040", 18))  // Second 2-hour mint (70% of 7200)
+      .add(ethers.parseUnits("720", 18))   // Third 1-hour mint (20% of 3600)
+      .sub(ethers.parseUnits("8000", 18)); // Total transfers (500+500+3500+3500)
+
+    expect(devBalAfter).to.be.closeTo(expectedFinalDevBalance, ethers.parseUnits("2", 18));
     expect(user1Balance).to.be.gt(0);
     expect(user2Balance).to.be.gt(0);
-    expect(devBalAfter).to.be.gt(devBalBefore);
 
+    // Print out balances for verification
     console.log("User1 final balance:", user1Balance.toString());
     console.log("User2 final balance:", user2Balance.toString());
     console.log("Dev final balance:", devBalAfter.toString());
