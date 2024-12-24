@@ -255,8 +255,18 @@ describe("TimeToken distribution model", function () {
     const user1FinalBalance = await timeToken.balanceOf(await user1.getAddress());
 
     // Account for initial transfers in dev balance
+    // Log values for debugging
+    console.log("Dev initial balance:", ethers.formatUnits(devInitialBalance, 18));
+    console.log("Transfer amount:", ethers.formatUnits(initialTransferAmount, 18));
+    console.log("Expected dev share:", ethers.formatUnits(expectedDevShare, 18));
+    console.log("Dev final balance:", ethers.formatUnits(devFinalBalance, 18));
+    
+    // Calculate expected final balance
+    const expectedFinalDevBalance = devInitialBalance - initialTransferAmount + expectedDevShare;
+    console.log("Expected final dev balance:", ethers.formatUnits(expectedFinalDevBalance, 18));
+
     expect(devFinalBalance).to.be.closeTo(
-      expectedDevShare + devInitialBalance - initialTransferAmount, 
+      expectedFinalDevBalance,
       ethers.parseUnits("2", 18)
     );
 
