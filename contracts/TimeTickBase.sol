@@ -10,20 +10,16 @@ contract TimeToken is ERC20 {
     uint256 public batchDuration;
 
     // Distribution constants (percentages)
-    uint8 private constant NO_KEEPERS_DEV_SHARE = 70;
-    uint8 private constant NO_KEEPERS_STABILITY_SHARE = 30;
-    uint8 private constant WITH_KEEPERS_DEV_SHARE = 20;
-    uint8 private constant WITH_KEEPERS_STABILITY_SHARE = 10;
+    uint8 private constant NO_KEEPERS_DEV_SHARE = 100;
+    uint8 private constant WITH_KEEPERS_DEV_SHARE = 30;
     uint8 private constant WITH_KEEPERS_VALIDATORS_SHARE = 70;
     uint256 private constant PERCENT_BASE = 100; // For easier readability
 
-    // Fund addresses
+    // Fund address
     address public immutable devFundAddress;
-    address public immutable stabilityPoolAddress;
 
     // Distribution totals
     uint256 public devFundTotal;
-    uint256 public stabilityPoolTotal;
 
     // Staking state (hourly)
     mapping(address => uint256) public stakedHours;
@@ -54,7 +50,6 @@ contract TimeToken is ERC20 {
     );
     event FundDistribution(
         uint256 devAmount,
-        uint256 stabilityAmount,
         uint256 timekeepersAmount,
         uint256 totalMaintainedStakeHours,
         uint256 timestamp
@@ -67,16 +62,12 @@ contract TimeToken is ERC20 {
     //-------------------------------------------------------------------------
     constructor(
         address _devFundAddress,
-        address _stabilityPoolAddress,
         uint256 _batchDuration
     ) ERC20("TimeToken", "TTB") {
         require(_devFundAddress != address(0), "Invalid dev fund address");
-        require(_stabilityPoolAddress != address(0), "Invalid stability pool address");
         require(_batchDuration > 0, "Batch duration must be positive");
-        require(_devFundAddress != _stabilityPoolAddress, "Addresses must be different");
 
         devFundAddress = _devFundAddress;
-        stabilityPoolAddress = _stabilityPoolAddress;
         batchDuration = _batchDuration;
 
         genesisTime = block.timestamp;
@@ -138,10 +129,6 @@ contract TimeToken is ERC20 {
 
     //-------------------------------------------------------------------------
     // Unvalidated Batch Mint
-    //
-    // For normal frequent usage (e.g., hourly). It simply mints tokens
-    // = (elapsedSeconds * 1 ether), potentially causing minor drift.
-    // This emits TokensMinted(..., false).
     //-------------------------------------------------------------------------
     function mintBatch() external {
         uint256 currentTime = block.timestamp;
@@ -174,17 +161,14 @@ contract TimeToken is ERC20 {
 
         // 3) Distribute minted tokens
         uint256 devAmount;
-        uint256 stabilityAmount;
         uint256 timekeepersAmount;
 
         if (totalMaintainedStakeHours == 0) {
-            // No stakers -> 70% dev, 30% stability
-            devAmount = (tokensToMint * NO_KEEPERS_DEV_SHARE) / PERCENT_BASE;
-            stabilityAmount = (tokensToMint * NO_KEEPERS_STABILITY_SHARE) / PERCENT_BASE;
+            // No stakers -> 100% dev
+            devAmount = tokensToMint;
             timekeepersAmount = 0;
         } else {
             devAmount = (tokensToMint * WITH_KEEPERS_DEV_SHARE) / PERCENT_BASE;
-            stabilityAmount = (tokensToMint * WITH_KEEPERS_STABILITY_SHARE) / PERCENT_BASE;
             timekeepersAmount = (tokensToMint * WITH_KEEPERS_VALIDATORS_SHARE) / PERCENT_BASE;
 
             // Distribute to timekeepers
@@ -196,13 +180,11 @@ contract TimeToken is ERC20 {
             }
         }
 
-        // Mint dev and stability shares
+        // Mint dev share
         _mint(devFundAddress, devAmount);
-        _mint(stabilityPoolAddress, stabilityAmount);
 
         // Update totals
         devFundTotal += devAmount;
-        stabilityPoolTotal += stabilityAmount;
 
         // 4) Update _lastBatchStakeHours for next round
         for (uint256 i = 0; i < stakersLength; i++) {
@@ -216,7 +198,6 @@ contract TimeToken is ERC20 {
         emit TokensMinted(address(this), tokensToMint, false);
         emit FundDistribution(
             devAmount,
-            stabilityAmount,
             timekeepersAmount,
             totalMaintainedStakeHours,
             currentTime
@@ -225,13 +206,6 @@ contract TimeToken is ERC20 {
 
     //-------------------------------------------------------------------------
     // Validated Batch Mint
-    //
-    // For periodic "true-up" to ensure final supply == expected supply
-    // = (block.timestamp - genesisTime) * 1 ether.
-    // This function corrects any under/over supply by adjusting the minted
-    // tokens BEFORE distribution. Over-supply yields zero new tokens,
-    // under-supply yields additional "catch-up" tokens.
-    // Emits TokensMinted(..., true).
     //-------------------------------------------------------------------------
     function mintBatchValidated() external {
         uint256 currentTime = block.timestamp;
@@ -242,13 +216,12 @@ contract TimeToken is ERC20 {
         uint256 currentSupply = totalSupply();
 
         // 2) Calculate how many tokens we can mint without exceeding the expected supply
-        //    If we're under-supplied, we catch up. If over-supplied, mintedTokens = 0.
         int256 supplyDiff = int256(expectedSupply) - int256(currentSupply);
         uint256 mintedTokens = 0;
         if (supplyDiff > 0) {
             // under-supplied
             mintedTokens = uint256(supplyDiff);
-        } 
+        }
         // else supplyDiff <= 0 => over-supplied, so mintedTokens = 0
 
         // 3) Stake-hours distribution logic (like in mintBatch)
@@ -272,37 +245,29 @@ contract TimeToken is ERC20 {
 
         // 4) Distribute minted tokens
         uint256 devAmount;
-        uint256 stabilityAmount;
         uint256 timekeepersAmount;
 
         if (totalMaintainedStakeHours == 0) {
-            // no keepers
-            devAmount = (mintedTokens * NO_KEEPERS_DEV_SHARE) / PERCENT_BASE;
-            stabilityAmount = (mintedTokens * NO_KEEPERS_STABILITY_SHARE) / PERCENT_BASE;
+            // no keepers -> 100% dev
+            devAmount = mintedTokens;
             timekeepersAmount = 0;
         } else {
-            // active keepers
+            // active keepers -> 30% dev, 70% keepers
             devAmount = (mintedTokens * WITH_KEEPERS_DEV_SHARE) / PERCENT_BASE;
-            stabilityAmount = (mintedTokens * WITH_KEEPERS_STABILITY_SHARE) / PERCENT_BASE;
             timekeepersAmount = (mintedTokens * WITH_KEEPERS_VALIDATORS_SHARE) / PERCENT_BASE;
 
             for (uint256 i = 0; i < stakersLength; i++) {
-                uint256 share = 0;
                 if (maintained[i] > 0) {
-                    share = (timekeepersAmount * maintained[i]) / totalMaintainedStakeHours;
+                    uint256 share = (timekeepersAmount * maintained[i]) / totalMaintainedStakeHours;
                     _mint(_allStakers[i], share);
                 }
             }
         }
 
-        // 5) Mint dev and stability shares
+        // 5) Mint dev share
         if (devAmount > 0) {
             _mint(devFundAddress, devAmount);
             devFundTotal += devAmount;
-        }
-        if (stabilityAmount > 0) {
-            _mint(stabilityPoolAddress, stabilityAmount);
-            stabilityPoolTotal += stabilityAmount;
         }
 
         // 6) Update lastBatchStakeHours for next cycle
@@ -318,7 +283,6 @@ contract TimeToken is ERC20 {
         emit TokensMinted(address(this), mintedTokens, true);
         emit FundDistribution(
             devAmount,
-            stabilityAmount,
             timekeepersAmount,
             totalMaintainedStakeHours,
             currentTime
