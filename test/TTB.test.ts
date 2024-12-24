@@ -228,15 +228,15 @@ describe("TimeToken distribution model", function () {
 
     // 2) Dev transfers enough for staking
     const devFundToken = timeToken.connect(devFund);
-    const transferAmount = ethers.parseUnits("4000", 18);
+    const initialTransferAmount = ethers.parseUnits("4000", 18);
     
     // Verify dev has enough tokens before transfer
-    const devBalance = await timeToken.balanceOf(await devFund.getAddress());
-    expect(devBalance).to.be.gte(transferAmount, "Dev fund should have enough tokens for transfer");
+    const devInitialBalance = await timeToken.balanceOf(await devFund.getAddress());
+    expect(devInitialBalance).to.be.gte(initialTransferAmount, "Dev fund should have enough tokens for transfer");
     
     await devFundToken.transfer(
       await user1.getAddress(),
-      transferAmount
+      initialTransferAmount
     );
 
     // 3) User1 stakes
@@ -251,19 +251,18 @@ describe("TimeToken distribution model", function () {
     const expectedDevShare = (hourlyTokens * 30n) / 100n;
     const expectedStakerShare = (hourlyTokens * 70n) / 100n;
 
-    const devBalance = await timeToken.balanceOf(await devFund.getAddress());
-    const user1Balance = await timeToken.balanceOf(await user1.getAddress());
+    const devFinalBalance = await timeToken.balanceOf(await devFund.getAddress());
+    const user1FinalBalance = await timeToken.balanceOf(await user1.getAddress());
 
     // Account for initial transfers in dev balance
-    const transferAmount = ethers.parseUnits("4000", 18);
-    expect(devBalance).to.be.closeTo(
-      expectedDevShare - transferAmount, 
+    expect(devFinalBalance).to.be.closeTo(
+      expectedDevShare + devInitialBalance - initialTransferAmount, 
       ethers.parseUnits("2", 18)
     );
 
     // User1 balance should be initial transfer + staker share
-    expect(user1Balance).to.be.closeTo(
-      transferAmount + expectedStakerShare, 
+    expect(user1FinalBalance).to.be.closeTo(
+      initialTransferAmount + expectedStakerShare, 
       ethers.parseUnits("2", 18)
     );
   });
