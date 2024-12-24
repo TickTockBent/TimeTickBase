@@ -238,6 +238,10 @@ describe("TimeToken distribution model", function () {
       await user1.getAddress(),
       initialTransferAmount
     );
+    
+    // Verify transfer worked
+    const postTransferBalance = await timeToken.balanceOf(await user1.getAddress());
+    expect(postTransferBalance).to.equal(initialTransferAmount, "Transfer failed");
 
     // 3) User1 stakes
     await timeToken.connect(user1).stake(1);
