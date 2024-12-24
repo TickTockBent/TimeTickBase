@@ -253,9 +253,13 @@ describe("TimeToken distribution model", function () {
     // 6) Check distribution is roughly correct, allowing for execution time
     const devFinalBalance = await timeToken.balanceOf(await devFund.getAddress());
     const user1FinalBalance = await timeToken.balanceOf(await user1.getAddress());
+    const contractBalance = await timeToken.balanceOf(timeToken.getAddress());
 
-    // User should have their initial transfer plus some rewards
-    expect(user1FinalBalance).to.be.gt(initialTransferAmount);
+    // User's spendable balance will be less than initial transfer since they staked
+    expect(user1FinalBalance).to.be.lt(initialTransferAmount);
+    
+    // Contract should hold the staked amount
+    expect(contractBalance).to.equal(STAKE_UNIT);
 
     // Dev should have less than their initial balance (transferred some away)
     expect(devFinalBalance).to.be.lt(devInitialBalance);
@@ -264,7 +268,7 @@ describe("TimeToken distribution model", function () {
     console.log("Final balances:", {
       dev: ethers.formatUnits(devFinalBalance, 18),
       user: ethers.formatUnits(user1FinalBalance, 18),
-      initialTransfer: ethers.formatUnits(initialTransferAmount, 18)
+      contract: ethers.formatUnits(contractBalance, 18)
     });
   });
 });
