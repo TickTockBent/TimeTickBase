@@ -222,15 +222,21 @@ describe("TimeToken distribution model", function () {
   });
 
   it("Scenario 5: With active stakers, Dev receives 30% and stakers 70%", async () => {
-    // 1) First mint with no stakers
-    await increaseTime(ONE_HOUR_SECONDS);
+    // 1) First mint with no stakers - wait longer to accumulate enough tokens
+    await increaseTime(ONE_HOUR_SECONDS * 5); // 5 hours worth of tokens
     await timeToken.mintBatch();
 
     // 2) Dev transfers enough for staking
     const devFundToken = timeToken.connect(devFund);
+    const transferAmount = ethers.parseUnits("4000", 18);
+    
+    // Verify dev has enough tokens before transfer
+    const devBalance = await timeToken.balanceOf(await devFund.getAddress());
+    expect(devBalance).to.be.gte(transferAmount, "Dev fund should have enough tokens for transfer");
+    
     await devFundToken.transfer(
       await user1.getAddress(),
-      ethers.parseUnits("4000", 18)
+      transferAmount
     );
 
     // 3) User1 stakes
