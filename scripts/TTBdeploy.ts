@@ -5,18 +5,16 @@ import * as fs from "fs";
 async function main() {
   console.log("Starting deployment...");
 
-  const [deployer, devFund, stabilityPool] = await ethers.getSigners();
+  const [deployer, devFund] = await ethers.getSigners();
   
   console.log("Deployer address:", deployer.address);
   console.log("Dev Fund address:", devFund.address);
-  console.log("Stability Pool address:", stabilityPool.address);
 
   const TimeToken = await ethers.getContractFactory("TimeToken");
   const batchDuration = 3600; // 1 hour in seconds
   
   const timeToken = await TimeToken.deploy(
     devFund.address,
-    stabilityPool.address,
     batchDuration
   );
 
@@ -36,7 +34,6 @@ async function main() {
   const deploymentInfo = {
     contractAddress: contractAddress,
     devFundAddress: devFund.address,
-    stabilityPoolAddress: stabilityPool.address,
     deployerAddress: deployer.address,
     batchDuration: batchDuration,
     stakeUnit: formatUnits(stakeUnit, 18),
