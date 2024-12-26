@@ -4,19 +4,19 @@
 
 ## Abstract
 
-TimeTickBase (TTB) introduces a token system that creates a direct relationship between time and token generation through smart contracts. By implementing a fixed emission rate of one token per second and enabling staking for both individuals or collaborativly through team structures, TTB provides a foundation for the first time-based digital asset systems on the Polygon network.
+TimeTickBase (TTB) introduces a token system that creates a direct relationship between time and token generation through smart contracts. By implementing a fixed emission rate of one TTB per second and enabling staking for both individuals or collaborativly through team structures, TTB provides a foundation for the first time-based digital asset systems on the Polygon network.
 
 ## 1. Introduction
 
 Time is humanity's most fundamental shared resource - universally measurable yet impossible to store or trade. While blockchain technology has enabled various forms of digital scarcity, no system has successfully created a direct relationship between time itself and token generation.
 
-TimeTickBase addresses this by implementing a token system where emission is governed by the passage of time itself - exactly one token per second, immutably encoded in smart contracts. This creates a digital asset whose supply growth perfectly mirrors the flow of time, enabled by modern blockchain technology.
+TimeTickBase addresses this by implementing a token system where emission is governed by the passage of time itself - exactly one TTB per second, immutably encoded in smart contracts. This creates a digital asset whose supply growth perfectly mirrors the flow of time, enabled by modern blockchain technology.
 
 By tying token generation to an immutable physical law, the linear passage of time, TTB aims to be nothing less than the most incorruptible trustless token system ever created. Ambitious? Perhaps. But an ambition worth pursuing.
 
 ## 2. System Architecture
 
-At its core, TTB implements a token generation system that mints exactly one token per second. This emission rate is immutable - encoded in smart contracts with no ability to arbitrarily mint additional tokens or modify the generation rate. The system batches these emissions (generally hourly) for efficient distribution, with approximately 3,600 tokens distributed in each hourly batch.
+At its core, TTB implements a token generation system that mints exactly one TTB per second. This emission rate is immutable - encoded in smart contracts with no ability to arbitrarily mint additional tokens or modify the generation rate. The system batches these emissions (generally hourly) for efficient distribution, with approximately 3,600 tokens distributed in each hourly batch.
 
 The generation mechanism relies on Polygon network block timestamps for time measurement. While this creates some variance in the precise second-by-second emission, the hourly batching system includes a total time verification step which ensures the correct total supply over time. The smart contract implements careful overflow protection and precision handling to maintain accurate token counts even at large numbers.
 
