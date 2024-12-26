@@ -48,7 +48,7 @@
 ### Structure
 - Duration: 12 months from launch
 - Fixed 50 slots
-- Initial 70% network emissions
+- Stakes a single share (1 stake-hour) which results in an initial 70% network emissions
 - Natural dilution as stakers join
 
 ### Slot Distribution
