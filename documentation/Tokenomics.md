@@ -59,6 +59,7 @@
 - Development Funding: 10 slots
 
 ## Development Fund
+- Dev fund controls TBD
 
 ### Governance
 - Multi-signature (3-of-5) requirement
