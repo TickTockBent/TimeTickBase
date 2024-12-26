@@ -34,8 +34,9 @@
 
 2. Full-stake Aggregator
    - Pooled stake structure
-   - One stake-day per member
-   - Configurable reward distribution
+   - Members transfer stake to leader on join
+   - Stake returned to member on exit
+   - Reward distribution configured by contract structure
 
 ## Genesis Fountain
 
