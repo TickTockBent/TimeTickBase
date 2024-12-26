@@ -33,7 +33,8 @@
 1. On-ramp Aggregator
    - Counts as a single share (one stake-hour)
    - No member stake requirement
-   - Initial distribution mechanism
+   - Initial distribution mechanism (Genesis Fountain)
+   - Rewards split evenly among all members
 
 2. Full-stake Aggregator
    - Pooled stake structure
