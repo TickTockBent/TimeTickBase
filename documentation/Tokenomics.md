@@ -14,6 +14,7 @@
 
 ### Without Active Stakers
 - Development Fund: 100% of emissions
+- Inital state prior to activation of Genesis Fountain
 
 ### With Active Stakers
 - Stakers: 70% of emissions
