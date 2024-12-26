@@ -19,7 +19,7 @@ TimeTickBase is a time-based token system built on the Polygon network that crea
 - No arbitrary minting or rate modification possible
 
 ### Staking System
-- Individual staking with minimum 86,400 TTB
+- Individual staking with minimum 3,600 TTB
 - Team staking through aggregator contracts
 - Two types of aggregators:
   1. On-ramp (single stake, no member stakes required)
@@ -36,7 +36,7 @@ TimeTickBase is a time-based token system built on the Polygon network that crea
 ### Prerequisites
 - Polygon network wallet
 - Basic understanding of blockchain staking
-- Minimum 86,400 TTB for individual staking
+- Minimum 3,600 TTB for individual staking
 
 ### Staking Options
 1. Individual Staking
