@@ -24,7 +24,7 @@ Distribution of newly generated tokens follows two distinct patterns based on ne
 
 ## 3. Staking Mechanism
 
-The staking system enables participants to lock TTB tokens and receive a portion of ongoing token generation. The minimum stake amount is set at 86,400 TTB - symbolically representing one day's worth of token generation. This creates a natural alignment between stake amounts and time periods. Because any stake below this amount confers no benefit, all staking is tracked in stake-days, or atomic units of 86,400 TTB.
+The staking system enables participants to lock TTB tokens and receive a portion of ongoing token generation. The minimum stake amount is set at 3,600 TTB - symbolically representing one hour's worth of token generation. This creates a natural alignment between stake amounts and time periods. Because any stake below this amount confers no benefit, all staking is tracked in stake-hours, or atomic units of 3,600 TTB.
 
 Staking operations are managed through smart contracts that track deposits, calculate rewards, and handle withdrawals. All staked tokens are subject to a timelock period to prevent rapid withdrawal and maintain system stability. The contracts implement comprehensive safety measures including reentrancy protection, balance verification, and atomic transaction handling.
 
@@ -34,11 +34,11 @@ From the start, two aggregator contract templates will be shared with the commun
 
 Type 1: On-ramp Aggregator
 
-An on-ramp aggregator effectively acts as a tap or faucet. The key difference between this aggregator contract and a full-stake aggregator is that an on-ramp contract acts as only a single stake when calculating rewards, but does not require its members to put forward any stake of their own. Deploying an on-ramp aggregator contract requires one stake-day worth of tokens staked. One of these will be activated by the dev team some time after the initial contract deployment, offering time-based membership under certain conditions. This will act as the initial token distribution mechanism, with the first on-ramp contract receiving most of the initial rewards before individual stakes begin to appear, or other teams deploy their own contracts.
+An on-ramp aggregator effectively acts as a tap or faucet. The key difference between this aggregator contract and a full-stake aggregator is that an on-ramp contract acts as only a single stake when calculating rewards, but does not require its members to put forward any stake of their own. Deploying an on-ramp aggregator contract requires one stake-hour worth of tokens staked. One of these will be activated by the dev team some time after the initial contract deployment, offering time-based membership under certain conditions. This will act as the initial token distribution mechanism, with the first on-ramp contract receiving most of the initial rewards before individual stakes begin to appear, or other teams deploy their own contracts.
 
 Type 2: Full-stake Aggregator
 
-A full-stake aggregator is a team/pool based structure. Such a contract will interact with the primary contract, reporting its membership. Every member of a full-stake contract must transfer one stake-day to the aggregator contract, which will collect their stake rewards on their behalf. Full-stake aggregators can then implement their own reward distribution mechanisms. This structure is intended to simplify the handling of larger groups who all wish to maintain their own stake but are not interested in or able to manage their own tokens and would like to stake as a group with other individuals.
+A full-stake aggregator is a team/pool based structure. Such a contract will interact with the primary contract, reporting its membership. Every member of a full-stake contract must transfer one stake-hour to the aggregator contract, which will collect their stake rewards on their behalf. Full-stake aggregators can then implement their own reward distribution mechanisms. This structure is intended to simplify the handling of larger groups who all wish to maintain their own stake but are not interested in or able to manage their own tokens and would like to stake as a group with other individuals.
 
 ## 4. Development Fund
 
@@ -72,7 +72,7 @@ The system leverages Polygon's efficient block times and low transaction costs t
 
 ### The Genesis Fountain
 
-The initial token distribution leverages TTB's on-ramp aggregator system through a special implementation dubbed "The Genesis Fountain." This contract serves as the primary distribution mechanism during the network's first year, operating as a single stake-day in the system while enabling broader initial participation.
+The initial token distribution leverages TTB's on-ramp aggregator system through a special implementation dubbed "The Genesis Fountain." This contract serves as the primary distribution mechanism during the network's first year, operating as a single share (one stake-hour) in the system while enabling broader initial participation.
 
 The Genesis Fountain is unique among on-ramp aggregators in three ways:
 1. Limited operational period of one year from network genesis
@@ -118,11 +118,11 @@ This distribution strategy serves multiple crucial purposes:
 
 3. **Time-Limited Impact**: The one-year operational limit ensures the Genesis Fountain's influence naturally concludes, transitioning to a more distributed network as individual timekeepers join.
 
-4. **Natural Dilution**: As individual timekeepers stake their own stake-days, the Genesis Fountain's share of rewards automatically diminishes, creating a smooth transition to broader network participation.
+4. **Natural Dilution**: As individual timekeepers stake their own stake-hours, the Genesis Fountain's share of rewards automatically diminishes, creating a smooth transition to broader network participation.
 
 ### Reward Mechanics
 
-The Genesis Fountain operates as a single stake-day in the system, initially receiving 70% of all network emissions. These rewards are distributed among the 50 slot holders according to the contract's distribution logic. As additional timekeepers join the network, the Fountain's rewards naturally decrease - for example, when the first independent timekeeper stakes their stake-day, the Fountain's rewards immediately reduce to 35% of network emissions.
+The Genesis Fountain operates as a single stake-hour in the system, initially receiving 70% of all network emissions. These rewards are distributed among the 50 slot holders according to the contract's distribution logic. As additional timekeepers join the network, the Fountain's rewards naturally decrease - for example, when the first independent timekeeper stakes their stake-day, the Fountain's rewards immediately reduce to 35% of network emissions.
 
 This mechanism ensures:
 * Initial broad distribution of tokens
