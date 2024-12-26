@@ -21,14 +21,14 @@
 ## Staking Mechanism
 
 ### Individual Staking
-- Minimum stake: 86,400 TTB (one stake-day)
+- Minimum stake: Determined by global variable, expressed in atomic unit (stake-hours)
 - Base unit: 3,600 TTB (one stake-hour)
 - Rewards proportional to maintained stake
 - Timelock period on withdrawals
 
 ### Team Staking
 1. On-ramp Aggregator
-   - Single stake-day operation
+   - Counts as a single share (one stake-hour)
    - No member stake requirement
    - Initial distribution mechanism
 
