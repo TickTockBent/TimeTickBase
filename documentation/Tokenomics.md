@@ -25,8 +25,9 @@
 ### Individual Staking
 - Minimum stake: Determined by global variable, expressed in atomic unit (stake-hours)
 - Base unit: 3,600 TTB (one stake-hour)
-- Rewards proportional to maintained stake
+- Rewards proportional to maintained stake (1 stake-hour = 1 share)
 - Timelock period on withdrawals
+- Timelock period based on time elapsed since token inception
 
 ### Team Staking
 1. On-ramp Aggregator
