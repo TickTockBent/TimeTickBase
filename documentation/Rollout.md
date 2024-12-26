@@ -1,6 +1,5 @@
 # TimeTickBase (TTB) Development Rollout
-*Updated December 2024*
-
+*Version 2.0 – December 2024*
 
 ## Phase 1: Core Implementation (Q1 2025)
 
@@ -13,7 +12,7 @@
 
 2. **Basic Staking System**
    - Stake deposit/withdrawal logic
-   - 86,400 TTB minimum checks
+   - 3,600 TTB minimum stake checks
    - Basic reward distribution
    - Timelock mechanism
 
