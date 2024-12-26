@@ -61,12 +61,6 @@
 ## Development Fund
 - Dev fund controls TBD
 
-### Governance
-- Multi-signature (3-of-5) requirement
-- 24-hour timelock on withdrawals
-- Maximum withdrawal limits
-- Quarterly public reporting
-
 ### Usage
 - Development costs
 - Security audits
@@ -74,3 +68,11 @@
 - Staff compensation
 - User acquisition
 - System maintenance
+
+## Governance
+- Timelord governance requiring large non-earning stake
+- Timelords able to create proposals, 4:1 voting share on non-earning stake
+- All timekeepers may vote on proposals except emergency
+- Multi-signature (3-of-5) requirement
+- Variable timelock on withdrawals (non-earning governance stake has longer timelock than earning stakes)
+- Quarterly public reporting
