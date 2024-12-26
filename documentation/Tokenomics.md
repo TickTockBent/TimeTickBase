@@ -3,11 +3,12 @@
 
 ## Token Generation
 - Fixed emission rate of 1 TTB per second
-- Batched hourly distributions (~3,600 TTB per batch)
+- Batched distributions, targeting hourly dispersal (~3,600 TTB per batch)
 - Supply increases linearly with time
 - No pre-mine or initial allocation
 - Supply validation through block timestamps
 - Overflow protection and precision handling implemented
+- No ability to mint arbitrary tokens
 
 ## Distribution Model
 
