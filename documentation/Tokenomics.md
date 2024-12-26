@@ -41,6 +41,7 @@
    - Members transfer stake to leader on join
    - Stake returned to member on exit
    - Reward distribution configured by contract structure
+   - Can implement timelock requirements or other requirements/incentives as part of contract
 
 ## Genesis Fountain
 
