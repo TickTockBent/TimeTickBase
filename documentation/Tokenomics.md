@@ -68,6 +68,7 @@
 - Staff compensation
 - User acquisition
 - System maintenance
+- Quarterly public reporting
 
 ## Governance
 - Timelord governance requiring large non-earning stake
@@ -75,4 +76,3 @@
 - All timekeepers may vote on proposals except emergency
 - Multi-signature (3-of-5) requirement
 - Variable timelock on withdrawals (non-earning governance stake has longer timelock than earning stakes)
-- Quarterly public reporting
