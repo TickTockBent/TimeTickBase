@@ -16,7 +16,7 @@ By tying token generation to an immutable physical law, the linear passage of ti
 
 ## 2. System Architecture
 
-At its core, TTB implements a token generation system that mints exactly one TTB per second. This emission rate is immutable - encoded in smart contracts with no ability to arbitrarily mint additional tokens or modify the generation rate. The system batches these emissions (generally hourly) for efficient distribution, with approximately 3,600 tokens distributed in each hourly batch.
+At its core, TTB implements a token generation system that mints exactly one TTB per second. This emission rate is immutable - encoded in smart contracts with no ability to arbitrarily mint additional tokens or modify the generation rate. The system batches these emissions (generally hourly) for efficient distribution, with ~3,600 tokens distributed in each hourly batch.
 
 The generation mechanism relies on Polygon network block timestamps for time measurement. While this creates some variance in the precise second-by-second emission, the hourly batching system includes a total time verification step which ensures the correct total supply over time. The smart contract implements careful overflow protection and precision handling to maintain accurate token counts even at large numbers.
 
