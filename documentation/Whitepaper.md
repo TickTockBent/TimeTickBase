@@ -46,7 +46,7 @@ The development fund plays a crucial role in ensuring sustainable system growth 
 
 To ensure responsible fund management while maintaining operational flexibility, the fund implements several governance mechanisms:
 - Multi-signature (3-of-5) requirement for withdrawals
-- 24-hour timelock on all withdrawal operations
+- Variable increasing timelock on all withdrawal operations
 - Maximum single withdrawal limits
 - Public transaction records and quarterly reporting
 - Emergency pause capability for security incidents
