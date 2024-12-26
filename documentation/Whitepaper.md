@@ -24,7 +24,7 @@ Distribution of newly generated tokens follows two distinct patterns based on ne
 
 ## 3. Staking Mechanism
 
-The staking system enables participants to lock TTB tokens and receive a portion of ongoing token generation. The minimum stake amount is set at 3,600 TTB - symbolically representing one hour's worth of token generation. This creates a natural alignment between stake amounts and time periods. Because any stake below this amount confers no benefit, all staking is tracked in stake-hours, or atomic units of 3,600 TTB.
+The staking system enables participants to lock TTB tokens and receive a portion of ongoing token generation. Stakes are made in units of one stake-hour (3600 TTB) - symbolically representing one hour's worth of token generation. This creates a natural alignment between stake amounts and time periods. Because any stake below this amount confers no benefit, all staking is tracked in stake-hours, or atomic units of 3,600 TTB.
 
 Staking operations are managed through smart contracts that track deposits, calculate rewards, and handle withdrawals. All staked tokens are subject to a timelock period to prevent rapid withdrawal and maintain system stability. The contracts implement comprehensive safety measures including reentrancy protection, balance verification, and atomic transaction handling.
 
@@ -122,7 +122,7 @@ This distribution strategy serves multiple crucial purposes:
 
 ### Reward Mechanics
 
-The Genesis Fountain operates as a single stake-hour in the system, initially receiving 70% of all network emissions. These rewards are distributed among the 50 slot holders according to the contract's distribution logic. As additional timekeepers join the network, the Fountain's rewards naturally decrease - for example, when the first independent timekeeper stakes their stake-day, the Fountain's rewards immediately reduce to 35% of network emissions.
+The Genesis Fountain operates as a single stake-hour in the system, initially receiving 70% of all network emissions. These rewards are distributed among the 50 slot holders according to the contract's distribution logic. As additional timekeepers join the network, the Fountain's rewards naturally decrease - for example, when the first independent timekeeper stakes a valid share, the Fountain's rewards immediately reduce to 35% of network emissions.
 
 This mechanism ensures:
 * Initial broad distribution of tokens
