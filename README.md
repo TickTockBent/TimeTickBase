@@ -5,10 +5,12 @@ TimeTickBase is a time-based token system built on the Polygon network that crea
 
 ## Core Principles
 
-- One token is generated per second, immutably
-- Tokens can be staked individually or through team structures
-- Minimum stake is 3,600 TTB (one hour's worth of tokens)
+- One token is generated per second
+- Immutable core contract
+- Tokens can be staked individually via dapp or collectively through aggregator contract structures
+- Staking is done in atomic units of one stake-hour (3,600 TTB) with a variable minimum stake
 - 70% of new tokens go to stakers, 30% to development fund
+- No premine, presale limited to 20% of initial token emissions
 
 ## Key Features
 
