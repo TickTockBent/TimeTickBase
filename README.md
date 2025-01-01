@@ -29,7 +29,7 @@ TimeTickBase is a time-based token system built on the Polygon network that crea
 - Aggregator contracts fully customizable
 
 ### Development Fund
-- Zero premine
+- No pre-mine or initial allocation
 - Organic growth through token generation
 - Multi-signature governance
 - Transparent usage and reporting
