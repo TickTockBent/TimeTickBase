@@ -30,12 +30,13 @@
 - Timelock period on stake withdrawals
 - Timelock period based on time elapsed since token inception
 
-### Team Staking
+### Collective Staking
 1. On-ramp Aggregator
    - Counts as a single share (one stake-hour)
    - No member stake requirement
-   - Initial distribution mechanism (Genesis Fountain)
    - Rewards split evenly among all members
+   - Easy on-ramp for new users to gain tokens, but low rewards
+   - An official on-ramp will be maintained by the team after Genesis Fountain ends (faucet)
 
 2. Full-stake Aggregator
    - Pooled stake structure
