@@ -3,7 +3,8 @@
 
 ## Token Generation
 - Fixed emission rate of 1 TTB per second
-- Batched distributions, targeting hourly dispersal (~3,600 TTB per batch)
+- Rewards claimed by Dapp
+- Unclaimed rewards released in batched weekly distributions
 - Supply increases linearly with time
 - No pre-mine or initial allocation
 - Supply validation through block timestamps
@@ -24,9 +25,9 @@
 
 ### Individual Staking
 - Minimum stake: Determined by global variable, expressed in atomic unit (stake-hours)
-- Base unit: 3,600 TTB (one stake-hour)
+- Atomic unit: 3,600 TTB (one stake-hour)
 - Rewards proportional to maintained stake (1 stake-hour = 1 share)
-- Timelock period on withdrawals
+- Timelock period on stake withdrawals
 - Timelock period based on time elapsed since token inception
 
 ### Team Staking
