@@ -21,7 +21,7 @@ The TimeTickBase (TTB) staking system implements a proportional reward distribut
 
 ## Technical Implementation
 
-### State Storage
+### Core Contract State Storage
 
 ```solidity
 struct Staker {
@@ -30,12 +30,13 @@ struct Staker {
     uint256 nextChangeHour;          // When stake changes take effect
     uint256 lastProcessedHour;       // Last hour accumulator was updated
     uint256 lastRenewalTimestamp;    // Last time stake was renewed
-    bool autoRenewalEnabled;         // Optional: Allow automatic renewal
 }
 
 mapping(address => Staker) public stakers;
 mapping(uint256 => uint256) public networkStakesByHour;
 ```
+
+Note: Renewal preferences and notifications are handled by a separate management contract to maintain core contract immutability.
 
 ### Core Operations
 
@@ -62,6 +63,27 @@ mapping(uint256 => uint256) public networkStakesByHour;
 2. Calculate rewards: stakedHourAccumulator * 3600
 3. Zero out stakedHourAccumulator
 4. Transfer TTB tokens
+
+### Renewal System
+
+#### Core Mechanics
+- 6-month renewal requirement for all stakes
+- Renewal is proof-of-life mechanism
+- No penalty for renewal beyond required timeframe
+- Automatic stake return if renewal missed
+
+#### Stake Return Process
+If lastRenewalTimestamp + 6 months < current_time:
+1. Transfer full stake amount back to user (currentStakes * 3600 TTB)
+2. Accumulated rewards remain claimable
+3. Set currentStakes to 0
+4. Emit StakeReturnedEvent
+
+#### Renewal Management
+- Handled by separate management contract
+- Can implement automated renewal systems
+- Manages user preferences and notifications
+- Upgradeable without affecting core staking mechanics
 
 ## Example Scenario
 
@@ -139,16 +161,17 @@ If they claim now:
 ## Future Considerations
 
 ### Scalability
-- Batch processing optimization
-- State compression techniques
-- Gas optimization strategies
+- System naturally handles large user bases efficiently
+- Only stores state changes in networkStakesByHour
+- Low per-user storage requirements
+- Efficient batch processing of rewards
 
 ### Features
-- Automated compounding
+- Automated compounding through management contracts
 - Delegation mechanisms
 - Team staking integration
 - Analytics and reporting
 
-This specification provides the foundation for implementing the TTB staking system while maintaining flexibility for future improvements and optimizations.
+This specification provides the foundation for implementing the TTB staking system while maintaining flexibility for future improvements and optimizations. The core contract remains immutable while allowing extension through separate management contracts.
 
 Note: Need to handle math precision, rounding, remainder, etc
