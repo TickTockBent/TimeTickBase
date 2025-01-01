@@ -24,11 +24,7 @@
 ## Staking Mechanism
 
 ### Individual Staking
-- Minimum stake: Determined by global variable, expressed in atomic unit (stake-hours)
-- Atomic unit: 3,600 TTB (one stake-hour)
-- Rewards proportional to maintained stake (1 stake-hour = 1 share)
-- Timelock period on stake withdrawals
-- Timelock period based on time elapsed since token inception
+  - See ./Staking.md
 
 ### Collective Staking
 1. On-ramp Aggregator
