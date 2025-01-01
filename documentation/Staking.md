@@ -150,3 +150,5 @@ If they claim now:
 - Analytics and reporting
 
 This specification provides the foundation for implementing the TTB staking system while maintaining flexibility for future improvements and optimizations.
+
+Note: Need to handle math precision, rounding, remainder, etc
