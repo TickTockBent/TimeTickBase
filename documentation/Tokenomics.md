@@ -60,6 +60,22 @@
 - Development Reserve: 10 slots
 - Development Funding: 10 slots
 
+### Fountain Timeline
+1. First 3 months: Network stake-locked
+   - No individual staking allowed
+   - No new aggregator contracts accepted
+   - Genesis Fountain will be the only share active
+2. Month 4-12
+   - Genesis Fountain remains 1 stake-hour (1 share)
+   - Open staking with natural dilution of fountain rewards as new stakes are placed
+   - Minimum stake opens at a high level to prevent immediate dilution of rewards
+     - Month 4: 25 stake-hours
+     - Month 5: 15 stake-hours
+     - Month 6: 10 stake-hours
+     - Month 7: 5 stake-hours
+     - Month 8: 1 stake-hour
+   - After month 8 staking is freely open to anyone with at least 1 stake-hour
+
 ## Development Fund
 - Dev fund controls TBD
 
