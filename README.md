@@ -16,8 +16,8 @@ TimeTickBase is a time-based token system built on the Polygon network that crea
 
 ### Token Generation
 - Fixed emission rate of 1 TTB per second
-- Hourly batch distribution (~3,600 tokens per batch)
-- Based on Polygon network timestamps
+- Rewards claimable via dapp or by weekly batched release
+- Based on Polygon (PoS) network timestamps
 - No arbitrary minting or rate modification possible
 
 ### Staking System
