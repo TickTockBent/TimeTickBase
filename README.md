@@ -29,6 +29,7 @@ TimeTickBase is a time-based token system built on the Polygon network that crea
 - Aggregator contracts fully customizable
 
 ### Development Fund
+- Zero premine
 - Organic growth through token generation
 - Multi-signature governance
 - Transparent usage and reporting
@@ -39,19 +40,17 @@ TimeTickBase is a time-based token system built on the Polygon network that crea
 ### Prerequisites
 - Polygon network wallet
 - Basic understanding of blockchain staking
-- Minimum 3,600 TTB for individual staking
+- Meet minimum TTB for individual staking
 
 ### Staking Options
 1. Individual Staking
    - Direct stake through main contract
-   - Minimum one stake-hour (3,600 TTB)
    - Atomic stake-units (Multiples of 1 stake-hour)
-   - Increasing minimum stake-hour requirement
+   - Decreasing minimum stake-hour requirement
 
-2. Team Staking
+2. Collective Staking
    - Join an existing aggregator
    - Create new team aggregator contract
-   - Participate in Genesis Fountain (initial distribution)
 
 ## Development Timeline
 
