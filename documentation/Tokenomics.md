@@ -89,7 +89,7 @@
 - Quarterly public reporting
 
 ## Governance
-- Timelord governance requiring large non-earning stake
+- Timelord governance requiring large non-earning stake (TODO: Determine what a 'large stake' is)
 - Timelords able to create proposals, 4:1 voting share on non-earning stake
 - All timekeepers may vote on proposals except emergency
 - Multi-signature (3-of-5) requirement
