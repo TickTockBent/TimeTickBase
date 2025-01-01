@@ -4,7 +4,7 @@
 
 ## Abstract
 
-TimeTickBase (TTB) introduces a token system that creates a direct relationship between time and token generation through smart contracts. By implementing a fixed emission rate of one TTB per second and enabling staking for both individuals or collaborativly through team structures, TTB provides a foundation for the first time-based digital asset systems on the Polygon network.
+TimeTickBase (TTB) introduces a token system that creates a direct relationship between time and token generation through smart contracts. By implementing a fixed emission rate of one TTB per second and enabling staking for both individuals or collaboratively through team structures, TTB provides a foundation for the first time-based digital asset systems on the Polygon network.
 
 ## 1. Introduction
 
@@ -20,29 +20,50 @@ At its core, TTB implements a token generation system that mints exactly one TTB
 
 The generation mechanism relies on Polygon network block timestamps for time measurement. While this creates some variance in the precise second-by-second emission, the hourly batching system includes a total time verification step which ensures the correct total supply over time. The smart contract implements careful overflow protection and precision handling to maintain accurate token counts even at large numbers.
 
-Distribution of newly generated tokens follows two distinct patterns based on network participation. When no active stakers (called timekeepers) exist, all newly generated tokens are directed to the development fund to bootstrap the ecosystem. Once stakers join the network, 70% of new tokens are distributed proportionally among active stakers, with the remaining 30% allocated to the development fund.
+Distribution of newly generated tokens follows two distinct patterns based on network participation:
+
+1. Without Active Stakers:
+   - Development Fund receives 100% of emissions
+   - Initial state prior to activation of Genesis Fountain
+
+2. With Active Stakers:
+   - 70% of new tokens are distributed proportionally among active stakers
+   - 30% allocated to the development fund
 
 ## 3. Staking Mechanism
 
-The staking system enables participants to lock TTB tokens and receive a portion of ongoing token generation. Stakes are made in units of one stake-hour (3600 TTB) - symbolically representing one hour's worth of token generation. This creates a natural alignment between stake amounts and time periods. Because any stake below this amount confers no benefit, all staking is tracked in stake-hours, or atomic units of 3,600 TTB.
+The staking system enables participants to lock TTB tokens and receive a portion of ongoing token generation. Stakes are made in units of one stake-hour (3,600 TTB) - symbolically representing one hour's worth of token generation. This creates a natural alignment between stake amounts and time periods. Because any stake below this amount confers no benefit, all staking is tracked in stake-hours, or atomic units of 3,600 TTB.
 
-Staking operations are managed through smart contracts that track deposits, calculate rewards, and handle withdrawals. All staked tokens are subject to a timelock period to prevent rapid withdrawal and maintain system stability. The contracts implement comprehensive safety measures including reentrancy protection, balance verification, and atomic transaction handling.
+All staked tokens are subject to a timelock period to prevent rapid withdrawal and maintain system stability. The timelock period is based on time elapsed since token inception, implementing a variable lockup period that helps maintain network stability. The contracts implement comprehensive safety measures including reentrancy protection, balance verification, and atomic transaction handling.
 
-To encourage collaboration and enable larger-scale participation, TTB also implements the concept of team staking in the form of aggregator contracts. Aggregator contracts can allow multiple stakes to cooperate under a single managing address, with configurable internal reward distribution. This creates opportunities for coordinated participation while maintaining individual stake ownership.
+To encourage collaboration and enable larger-scale participation, TTB implements two types of team staking through aggregator contracts:
 
-From the start, two aggregator contract templates will be shared with the community, and TTB will implement connectors for these separate contracts to interact with.
+1. On-ramp Aggregator
+   - Counts as a single share (one stake-hour)
+   - No member stake requirement
+   - Rewards split evenly among all members
+   - Easy on-ramp for new users to gain tokens, but low rewards
+   - An official on-ramp will be maintained by the team after Genesis Fountain ends
 
-Type 1: On-ramp Aggregator
-
-An on-ramp aggregator effectively acts as a tap or faucet. The key difference between this aggregator contract and a full-stake aggregator is that an on-ramp contract acts as only a single stake when calculating rewards, but does not require its members to put forward any stake of their own. Deploying an on-ramp aggregator contract requires one stake-hour worth of tokens staked. One of these will be activated by the dev team some time after the initial contract deployment, offering time-based membership under certain conditions. This will act as the initial token distribution mechanism, with the first on-ramp contract receiving most of the initial rewards before individual stakes begin to appear, or other teams deploy their own contracts.
-
-Type 2: Full-stake Aggregator
-
-A full-stake aggregator is a team/pool based structure. Such a contract will interact with the primary contract, reporting its membership. Every member of a full-stake contract must transfer one stake-hour to the aggregator contract, which will collect their stake rewards on their behalf. Full-stake aggregators can then implement their own reward distribution mechanisms. This structure is intended to simplify the handling of larger groups who all wish to maintain their own stake but are not interested in or able to manage their own tokens and would like to stake as a group with other individuals.
+2. Full-stake Aggregator
+   - Pooled stake structure
+   - Members transfer stake to leader on join
+   - Stake returned to member on exit
+   - Reward distribution configured by contract structure
+   - Can implement timelock requirements or other requirements/incentives
 
 ## 4. Development Fund
 
 The development fund plays a crucial role in ensuring sustainable system growth and maintenance. Unlike systems that rely on premines or token sales, TTB's development fund grows organically through ongoing token generation. This creates a more natural alignment between development resources and system growth.
+
+Fund usage focuses on:
+- Development costs
+- Security audits
+- Network infrastructure
+- Staff compensation
+- User acquisition
+- System maintenance
+- Quarterly public reporting
 
 To ensure responsible fund management while maintaining operational flexibility, the fund implements several governance mechanisms:
 - Multi-signature (3-of-5) requirement for withdrawals
@@ -50,8 +71,6 @@ To ensure responsible fund management while maintaining operational flexibility,
 - Maximum single withdrawal limits
 - Public transaction records and quarterly reporting
 - Emergency pause capability for security incidents
-
-Fund usage focuses on core system needs: development costs, security audits, network infrastructure, staff salaries, user acquisition, and ongoing maintenance. All usage is publicly documented to maintain transparency with the community.
 
 ## 5. Technical Implementation
 
@@ -74,14 +93,15 @@ The system leverages Polygon's efficient block times and low transaction costs t
 
 The initial token distribution leverages TTB's on-ramp aggregator system through a special implementation dubbed "The Genesis Fountain." This contract serves as the primary distribution mechanism during the network's first year, operating as a single share (one stake-hour) in the system while enabling broader initial participation.
 
-The Genesis Fountain is unique among on-ramp aggregators in three ways:
-1. Limited operational period of one year from network genesis
-2. Fixed membership of 50 slots
-3. Receives the initial network emissions (70% of all generated tokens) until other timekeepers join
+The Genesis Fountain operates for 12 months from launch with the following structure:
+- Fixed 50 slots
+- Stakes a single share (1 stake-hour)
+- Receives 70% of network emissions initially
+- Natural dilution as stakers join
 
 ### Slot Distribution
 
-The 50 Genesis Fountain slots are allocated through multiple channels to ensure fair and purposeful initial distribution:
+The 50 Genesis Fountain slots are allocated through multiple channels:
 
 * 10 slots - Community Development
   * Awarded to significant code contributors
@@ -108,21 +128,29 @@ The 50 Genesis Fountain slots are allocated through multiple channels to ensure 
   * Funds allocated to development costs
   * Smart contract audits and deployment
 
-### Implementation Rationale
+### Implementation Timeline
 
-This distribution strategy serves multiple crucial purposes:
+The Genesis Fountain follows a structured timeline to ensure controlled network growth:
 
-1. **Fair Access**: 80% of slots are available through merit, contribution, or random chance, ensuring broad participation opportunity.
+1. First 3 months: Network stake-locked
+   - No individual staking allowed
+   - No new aggregator contracts accepted
+   - Genesis Fountain will be the only share active
 
-2. **Development Funding**: The 10 purchasable slots provide essential capital for smart contract audits and deployment costs, necessary for a secure launch. These slots, like all others, offer no guaranteed tokens - only participation rights in the Genesis Fountain.
-
-3. **Time-Limited Impact**: The one-year operational limit ensures the Genesis Fountain's influence naturally concludes, transitioning to a more distributed network as individual timekeepers join.
-
-4. **Natural Dilution**: As individual timekeepers stake their own stake-hours, the Genesis Fountain's share of rewards automatically diminishes, creating a smooth transition to broader network participation.
+2. Months 4-12: Graduated opening
+   - Genesis Fountain remains 1 stake-hour (1 share)
+   - Open staking with natural dilution of fountain rewards
+   - Minimum stake requirements:
+     - Month 4: 25 stake-hours
+     - Month 5: 15 stake-hours
+     - Month 6: 10 stake-hours
+     - Month 7: 5 stake-hours
+     - Month 8: 1 stake-hour
+   - After month 8: Free staking with 1 stake-hour minimum
 
 ### Reward Mechanics
 
-The Genesis Fountain operates as a single stake-hour in the system, initially receiving 70% of all network emissions. These rewards are distributed among the 50 slot holders according to the contract's distribution logic. As additional timekeepers join the network, the Fountain's rewards naturally decrease - for example, when the first independent timekeeper stakes a valid share, the Fountain's rewards immediately reduce to 35% of network emissions.
+The Genesis Fountain operates as a single stake-hour in the system, initially receiving 70% of all network emissions. These rewards are distributed among the 50 slot holders according to the contract's distribution logic. As additional timekeepers join the network, the Fountain's rewards naturally decrease - for example, when the first independent timekeeper stakes a valid share, the Fountain's rewards are proportionally reduced.
 
 This mechanism ensures:
 * Initial broad distribution of tokens
@@ -132,7 +160,16 @@ This mechanism ensures:
 
 The Genesis Fountain concludes operations exactly one year after network launch, at which point it ceases collecting rewards. This creates a clear timeline for transition to fully decentralized network participation through individual and team-based staking.
 
-## 7. Development Roadmap
+## 7. Governance
+
+The system implements a timelord governance structure requiring:
+- Large non-earning stake (exact amount TBD)
+- 4:1 voting share on non-earning stake for timelords
+- All timekeepers may vote on non-emergency proposals
+- Multi-signature (3-of-5) requirement
+- Variable timelock on withdrawals (longer for non-earning governance stake)
+
+## 8. Development Roadmap
 
 System development follows a phased approach:
 
