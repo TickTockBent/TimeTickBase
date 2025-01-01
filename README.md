@@ -54,9 +54,7 @@ TimeTickBase is a time-based token system built on the Polygon network that crea
 
 ## Development Timeline
 
-- Q1 2025: Core token mechanics
-- Q2 2025: Team staking implementation
-- Q3 2025: System optimization
+TBD - Reworking
 
 ## Security Features
 
