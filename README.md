@@ -21,11 +21,12 @@ TimeTickBase is a time-based token system built on the Polygon network that crea
 - No arbitrary minting or rate modification possible
 
 ### Staking System
-- Individual staking with minimum 3,600 TTB
-- Team staking through aggregator contracts
-- Two types of aggregators:
+- Individual staking with variable minimum stake
+- Collective staking through aggregator contracts
+- Two types of aggregator templates provided:
   1. On-ramp (single stake, no member stakes required)
   2. Full-stake (pooled stakes from all members)
+- Aggregator contracts fully customizable
 
 ### Development Fund
 - Organic growth through token generation
