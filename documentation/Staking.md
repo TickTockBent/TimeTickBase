@@ -93,6 +93,23 @@ Note: Renewal preferences and notifications are handled by a separate management
 
 ### Hour Boundary Processing
 
+#### Processing Triggers
+Hour boundary processing is initiated by any of the following actions:
+- Stake deposit or withdrawal
+- Reward claims from stakers
+- Development fund reward claims
+- Genesis Fountain reward claims
+
+#### Processing Flow
+Each trigger initiates the following sequence:
+1. Calculate elapsed time and mint tokens since last mint
+2. Process any missed hours and update stake-hours
+3. Handle pending state changes
+   - Update individual stakes
+   - Update network total stakes
+
+The system automatically catches up any missed processing periods, ensuring accurate reward distribution regardless of trigger timing.
+
 #### Processing Windows
 - Standard Window (XX:00:00 - XX:59:29):
   * State changes queue for next hour boundary
