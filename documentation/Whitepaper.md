@@ -163,3 +163,88 @@ Every derived contract inherits three levels of security:
    - Multi-signature requirements
    - Emergency pause mechanisms (for derived functionality only)
 
+## 3. Token Generation Mathematics
+
+The mathematical foundation of TTB consists of three interconnected systems: base token generation, stake-hour calculation, and reward distribution. Each system builds upon the fundamental 1:1 time-token relationship while maintaining precise accounting across all operations.
+
+### 3.1 Base Token Generation
+
+The primary generation function follows:
+
+Let t₀ be genesis time and t be current time:
+```
+Supply(t) = t - t₀
+```
+
+For any time interval [t₁, t₂]:
+```
+Generated(t₁, t₂) = t₂ - t₁
+```
+
+Batch processing adds complexity through time quantization. For a batch at time t with last batch time t_last:
+```
+BatchAmount = ⌊t - t_last⌋
+Remainder(t) = (t - t_last) mod 1
+```
+
+The remainder is tracked and included in total-time validation:
+```
+TotalRemainder(t) = ∑ Remainder(tᵢ) for all batches i
+```
+
+### 3.2 Stake-Hour Calculations
+
+Stake-hours form the basis of reward distribution. For a staker s at time t:
+```
+StakeHours(s,t) = Stakes(s,t) × TimeActive(s,t) / TotalNetworkStakes(t)
+```
+
+This accumulates over time intervals:
+```
+AccumulatedStakeHours(s,[t₁,t₂]) = ∫[t₁,t₂] Stakes(s,t)/TotalNetworkStakes(t) dt
+```
+
+The discrete implementation uses hourly checkpoints:
+```
+HourlyStakeHours(s,h) = Stakes(s,h) / TotalNetworkStakes(h)
+```
+
+### 3.3 Reward Distribution Mathematics
+
+Reward calculation for a period follows:
+```
+Reward(s,[t₁,t₂]) = Generated(t₁,t₂) × StakeRatio × StakeHours(s,[t₁,t₂])
+```
+where StakeRatio is 0.7 (70% to stakers)
+
+From the core contract's perspective, all stakeholders (whether individual addresses or contracts) are treated identically:
+```
+Reward(stakeholder,[t₁,t₂]) = Generated(t₁,t₂) × StakeRatio × StakeHours(stakeholder,[t₁,t₂])
+```
+
+Aggregator contracts appear as single stakeholders to the core system. Any internal reward distribution among aggregator members is handled entirely by the aggregator contract's own logic after rewards are claimed from the core contract.
+
+### 3.4 Template Token Derivation
+
+Derived tokens through wrapper contracts maintain mathematical relationships to TTB:
+
+For a wrapper token W with ratio R:
+```
+W_Supply = TTB_Locked × R
+W_Generation(t₁,t₂) = Generated(t₁,t₂) × R
+```
+
+*Note: While wrapped tokens maintain a fixed mathematical relationship with TTB for minting and burning operations, this does not guarantee any specific market value relationship. Even a 1:1 wrapped token may trade at prices above or below the TTB market price - the ratio only guarantees the conversion relationship for deposits and withdrawals.*
+
+For sharded tokens with shard count S:
+```
+Shard_Value = TTB_Base_Unit / S
+Shard_Supply = TTB_Locked × S
+```
+
+*Note: While sharded tokens maintain this fixed mathematical relationship with TTB in terms of conversion and supply, this does not guarantee any specific market value relationship. A sharded token with ratio 1000:1 can trade at any market price relative to TTB - the ratio only guarantees the conversion relationship for deposits and withdrawals.*
+
+Each mathematical relationship preserves the core time-token linkage while enabling flexible implementations, but market forces ultimately determine trading values independently of these mechanical relationships.
+
+Each mathematical relationship preserves the core time-token linkage while enabling flexible implementations.
+
