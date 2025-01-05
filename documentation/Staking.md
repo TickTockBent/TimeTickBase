@@ -6,6 +6,14 @@ The TimeTickBase (TTB) staking system implements a proportional reward distribut
 
 ## Core Concepts
 
+### Renewal Requirement
+- Stakes must be renewed every 6 months
+- Serves as proof-of-life mechanism
+- Prevents indefinite reward accumulation by abandoned stakes
+- No penalty for renewal beyond timeframe
+- Non-renewed stakes are automatically returned
+- Accumulated rewards remain claimable
+
 ### Stake Units
 - Basic unit is one stake (3,600 TTB)
 - Represents potential claim on one hour of token generation
@@ -19,44 +27,80 @@ The TimeTickBase (TTB) staking system implements a proportional reward distribut
 - One completed stake-hour = 3,600 TTB in rewards
 - Tracks proportional network participation over time
 
+### Unstaking Delay
+- Fixed delay period between unstaking request and token return
+- Typically several days
+- Prevents rapid stake cycling and emotional responses to market events
+- Natural protection against coordinated unstaking attacks
+- All unstaking requests process in FIFO order
+- Does not affect reward accumulation during delay period
+
 ## Technical Implementation
 
 ### Core Contract State Storage
 
 ```solidity
+struct UnstakeRequest {
+    uint256 stakeAmount;
+    uint256 requestTime;
+    uint256 processTime;
+}
+
 struct Staker {
     uint256 currentStakes;           // Current stake units
     uint256 stakedHourAccumulator;   // Accumulated stake-hours
     uint256 nextChangeHour;          // When stake changes take effect
     uint256 lastProcessedHour;       // Last hour accumulator was updated
     uint256 lastRenewalTimestamp;    // Last time stake was renewed
+    UnstakeRequest[] unstakeQueue;   // Pending unstake requests
 }
 
 mapping(address => Staker) public stakers;
 mapping(uint256 => uint256) public networkStakesByHour;
+uint256 public constant UNSTAKE_DELAY = 3 days;
+
 ```
 
 Note: Renewal preferences and notifications are handled by a separate management contract to maintain core contract immutability.
+### Renewal Processing
+1. Check lastRenewalTimestamp + 6 months ≥ current time
+2. If renewal missed:
+   - Return full stake amount to user
+   - Maintain accumulated rewards (still claimable)
+   - Zero out currentStakes
+   - Remove from active staker set
+3. Emit StakeReturnedEvent
 
 ### Core Operations
 
 #### Stake Deposit
 1. Validate stake amount (multiple of 3,600 TTB)
-2. Queue stake addition for next hour
+2. Queue stake addition for next hour boundary
 3. Update networkStakesByHour for next hour
 4. Set nextChangeHour
 
-#### Stake Withdrawal
-1. Validate stake existence
-2. Queue stake removal for next hour
+#### Stake Withdrawal Request
+1. Validate stake existence and amount
+2. Create unstake request with:
+   - Current timestamp
+   - Process time (current + UNSTAKE_DELAY)
+   - Requested amount
+3. Add to unstake queue
+4. Emit UnstakeRequestedEvent
+
+#### Process Unstaking
+1. Check for mature unstake requests (processTime <= current time)
+2. Queue stake removal for next hour boundary
 3. Update networkStakesByHour for next hour
-4. Set nextChangeHour
+4. Transfer TTB after next hour evaluation
+5. Remove request from queue
 
 #### Hourly Processing
 1. For each staker with valid stakes:
    - Calculate proportion: stakes / total_network_stakes
    - Add proportion to stakedHourAccumulator
    - Update lastProcessedHour
+2. Process any pending stake changes for next hour
 
 #### Reward Claims
 1. Process any pending hours
@@ -85,8 +129,9 @@ If lastRenewalTimestamp + 6 months < current_time:
 - Manages user preferences and notifications
 - Upgradeable without affecting core staking mechanics
 
-## Example Scenario
+## Example Scenarios
 
+### Basic Staking
 Starting State:
 - Network: 10,000 total stakes
 - Alice: 1,000 stakes
@@ -115,6 +160,13 @@ If they claim now:
 - Bob receives: 0.6727 * 3600 = 2,421.72 TTB
 - Charlie receives: 2.0363 * 3600 = 7,330.68 TTB
 
+### Unstaking Example
+1. Bob requests to unstake 1,000 stakes at T
+2. Request queued with processTime = T + 3 days
+3. Stake continues accumulating rewards normally
+4. At T + 3 days, unstake processes after hour evaluation
+5. Bob's stake reduces by 1,000 at next hour boundary
+
 ## Security Considerations
 
 ### Precision Handling
@@ -128,20 +180,24 @@ If they claim now:
 - Proper overflow protection
 - Gas optimization for batch processing
 
+### Unstaking Protection
+- Fixed delay provides market stability
+- FIFO processing prevents gaming
+- Continued rewards during delay maintain fairness
+- Clear unstake status tracking
+
 ### Stake Renewal System
 - Renewal required every 6 months
 - User-initiated confirmation of stake maintenance
 - Automatic unstaking if not renewed
 - Early renewal allowed
 - Clear warning system as deadline approaches
-
 ### Risk Mitigations
 - Maximum stake limit to prevent manipulation
 - Rate limiting on stake changes
 - Emergency pause capabilities
 - Proper access controls
 - Automated stake return on missed renewal
-
 ## Interface Requirements
 
 ### Smart Contract
@@ -149,12 +205,14 @@ If they claim now:
 - Efficient batch processing
 - Event emission for all state changes
 - Proper error handling and revert messages
+- Unstake queue inspection functions
 
 ### Dapp Interface
 - Display current stakes
 - Show accumulated stake-hours
 - Estimate current rewards
 - Track pending stake changes
+- Display unstaking requests and status
 - Show network total stakes
 - Historical stake tracking
 
