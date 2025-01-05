@@ -499,3 +499,144 @@ The TTB ecosystem maintains security through:
    - Transparent issue tracking
 
 This comprehensive security architecture ensures that TTB maintains its trustless foundation while enabling secure ecosystem growth through verified implementations and clear security inheritance.
+
+# TTB Whitepaper
+## 6. Governance Architecture
+
+TTB implements a balanced governance system that combines strong leadership with democratic participation, using economic incentives to maintain equilibrium.
+
+### 6.1 Timelord Governance
+
+Timelords serve as primary governors of the system through significant stake commitment:
+
+```solidity
+struct Timelord {
+    uint256 governanceStake;    // Non-earning stake
+    uint256 lastProposal;       // Timestamp of last proposal
+    bool active;                // Active status
+}
+
+struct Proposal {
+    address proposer;           // Timelord address
+    uint256 votingPower;       // Total available votes
+    uint256 timelock;          // Required delay before execution
+    mapping(address => Vote) votes;
+}
+```
+
+Voting power calculation:
+```
+TimelordVotePower = GovernanceStake * 4  // 4:1 voting power
+```
+
+### 6.2 Stake Requirements
+
+1. Governance Stake
+   ```
+   MinimumGovernanceStake = f(NetworkTotalStake)  // TBD
+   ```
+   - Must be non-earning stake
+   - Locked for governance duration
+   - Cannot be used for regular staking rewards
+
+2. Voting Rights
+   ```
+   RegularStakerVotes = ActiveStake
+   TimelordVotes = GovernanceStake * 4
+   ```
+
+### 6.3 Proposal Mechanics
+
+1. Creation Rights
+   - Any address with sufficient governance stake
+   - Must meet minimum stake requirement
+   - Subject to proposal cooldown period
+
+2. Voting Process
+   ```solidity
+   struct Vote {
+       bool support;            // For/Against
+       uint256 weight;         // Voting power
+       uint256 timestamp;      // Vote time
+   }
+   ```
+
+3. Execution Requirements
+   ```
+   RequiredApproval = TotalVotingPower * 0.51  // Simple majority
+   TimelockPeriod = f(ProposalImpact)         // Variable by type
+   ```
+
+### 6.4 Power Balance
+
+The system maintains equilibrium through:
+
+1. Economic Trade-offs
+   - Timelords sacrifice earning potential
+   - Higher voting power compensates for lost earnings
+   - Open participation prevents centralization
+
+2. Natural Checks
+   ```
+   // New timelord viability
+   PotentialGovernancePower = StakeAmount * 4
+   EarningOpportunityCost = StakeAmount * CurrentAPR
+   ```
+
+3. Progressive Decentralization
+   - Any large stakeholder can become timelord
+   - Multiple timelords can coexist
+   - System adapts to participation levels
+
+### 6.5 Proposal Categories
+
+1. Standard Proposals
+   - Network parameter adjustments
+   - Feature activations
+   - Resource allocations
+   - Simple majority required
+
+2. Critical Proposals
+   - Security measures
+   - Core system changes
+   - Higher approval threshold
+   - Extended timelock period
+
+3. Emergency Actions
+   - Rapid response capabilities
+   - Limited scope
+   - Higher stake requirements
+   - Shorter execution timeframe
+
+### 6.6 Implementation Notes
+
+1. Voting Contract
+   ```solidity
+   interface IGovernance {
+       function createProposal(
+           bytes calldata actions,
+           string calldata description
+       ) external returns (uint256 proposalId);
+       
+       function castVote(
+           uint256 proposalId,
+           bool support
+       ) external returns (uint256 weight);
+       
+       function executeProposal(
+           uint256 proposalId
+       ) external returns (bool success);
+   }
+   ```
+
+2. Security Measures
+   - Proposal validation
+   - Execution timelock
+   - Vote delegation prevention
+   - Clear audit trail
+
+3. Transparency Requirements
+   - Public proposal details
+   - Visible voting records
+   - Documented execution
+   - Stake verification
