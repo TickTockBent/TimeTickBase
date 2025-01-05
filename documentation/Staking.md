@@ -41,9 +41,10 @@ The TimeTickBase (TTB) staking system implements a proportional reward distribut
 
 ```solidity
 struct UnstakeRequest {
-    uint256 stakeAmount;
-    uint256 requestTime;
-    uint256 processTime;
+    uint256 amount;         // Amount requested to unstake
+    uint256 requestTime;    // When request was made
+    uint256 processTime;    // When request can be processed
+    bool pending;          // Whether there's an active request
 }
 
 struct Staker {
@@ -51,7 +52,7 @@ struct Staker {
     uint256 stakedHourAccumulator;   // Accumulated stake-hours
     uint256 lastProcessedHour;       // Last hour accumulator was updated
     uint256 lastRenewalTimestamp;    // Last time stake was renewed
-    UnstakeRequest[] unstakeQueue;   // Pending unstake requests
+    UnstakeRequest unstakeRequest;   // Single active unstake request
 }
 
 mapping(address => Staker) public stakers;
@@ -70,6 +71,7 @@ Note: Renewal preferences and notifications are handled by a separate management
 4. networkTotalStakes updated when change processes
 
 #### Stake Withdrawal Request
+
 1. Validate stake existence and amount
 2. Create unstake request with:
    - Current timestamp
