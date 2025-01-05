@@ -32,7 +32,7 @@ The TimeTickBase (TTB) staking system implements a proportional reward distribut
 - Typically several days
 - Prevents rapid stake cycling and emotional responses to market events
 - Natural protection against coordinated unstaking attacks
-- All unstaking requests process in FIFO order
+- One active unstake request per address
 - Does not affect reward accumulation during delay period
 
 ## Technical Implementation
@@ -40,16 +40,17 @@ The TimeTickBase (TTB) staking system implements a proportional reward distribut
 ### Core Contract State Storage
 
 ```solidity
-struct PendingChange {
-    int256 stakeChange;    // positive for add, negative for remove
-    bool pending;          // Whether there's a pending change
+enum ChangeType {
+    NONE,
+    STAKE_ADD,
+    STAKE_REMOVE
 }
 
-struct UnstakeRequest {
-    uint256 amount;         // Amount requested to unstake
+struct StateChange {
+    uint256 amount;         // Amount to change
     uint256 requestTime;    // When request was made
-    uint256 processTime;    // When request can be processed
-    bool pending;           // Whether there's an active request
+    uint256 processTime;    // When change can be processed (immediate for adds, delayed for removes)
+    ChangeType changeType;  // Type of change pending
 }
 
 struct Staker {
@@ -57,8 +58,7 @@ struct Staker {
     uint256 stakedHourAccumulator;   // Accumulated stake-hours
     uint256 lastProcessedHour;       // Last hour accumulator was updated
     uint256 lastRenewalTimestamp;    // Last time stake was renewed
-    UnstakeRequest unstakeRequest;   // Single active unstake request
-    PendingChange stakeChange;       // Single pending stake change
+    StateChange pendingChange;       // Single pending state change
 }
 
 mapping(address => Staker) public stakers;
@@ -72,33 +72,49 @@ Note: Renewal preferences and notifications are handled by a separate management
 
 #### Stake Deposit
 1. Validate stake amount (multiple of 3,600 TTB)
-2. Queue stake addition for next hour boundary
-3. Stake processed at next hour boundary
-4. networkTotalStakes updated when change processes
+2. Validate no pending state change
+3. Create pending state change:
+   - Set amount to stake amount
+   - Set requestTime to current time
+   - Set processTime to current time
+   - Set changeType to STAKE_ADD
+4. Transfer TTB to contract
+5. Changes process at next hour boundary
 
 #### Stake Withdrawal Request
-1. Validate stake existence and amount
-2. Create unstake request with:
-   - Current timestamp
-   - Process time (current + UNSTAKE_DELAY)
-   - Requested amount
-3. Add to unstake queue
+1. Validate no pending state change
+2. Validate stake existence and amount
+3. Create pending state change:
+   - Set amount to unstake amount
+   - Set requestTime to current time
+   - Set processTime to current time + UNSTAKE_DELAY
+   - Set changeType to STAKE_REMOVE
 4. Emit UnstakeRequestedEvent
 
-#### Process Unstaking
-1. Check for mature unstake requests (processTime <= current time)
-2. Queue stake removal for next hour boundary
-3. Process at next hour boundary, updating networkTotalStakes
-4. Transfer TTB after hour boundary
-5. Remove request from queue
+### Hour Boundary Processing
 
-#### Hourly Processing
-1. Process any pending stake changes
-2. Update networkTotalStakes
-3. For each staker with valid stakes:
-   - Calculate proportion: stakes / networkTotalStakes
-   - Add proportion to stakedHourAccumulator
-   - Update lastProcessedHour
+#### Processing Windows
+- Standard Window (XX:00:00 - XX:59:29):
+  * State changes queue for next hour boundary
+- Boundary Window (XX:59:30 - XX:59:59):
+  * State changes automatically queue for hour boundary after next
+  * Ensures clean state for processing
+  * Prevents race conditions during hour transition
+
+#### Processing Order
+1. Calculate stake-hours for current hour:
+   - For each staker with valid stakes:
+     * Calculate proportion: stakes / networkTotalStakes
+     * Add proportion to stakedHourAccumulator
+     * Update lastProcessedHour
+2. Process pending state changes:
+   - For each account with pending change:
+     * Validate processTime <= current time
+     * Apply change to currentStakes
+     * Update networkTotalStakes
+     * Clear pending change (set to NONE)
+   - Order of processing changes does not affect rewards
+     (all changes take effect after hour's stake-hour calculation)
 
 #### Reward Claims
 1. Process any pending hours
@@ -160,10 +176,10 @@ If they claim now:
 
 ### Unstaking Example
 1. Bob requests to unstake 1,000 stakes at T
-2. Request queued with processTime = T + 3 days
+2. Request creates state change with processTime = T + 3 days
 3. Stake continues accumulating rewards normally
-4. At T + 3 days, unstake processes after hour evaluation
-5. Bob's stake reduces by 1,000 at next hour boundary
+4. At T + 3 days, after hour evaluation, stake reduces by 1,000
+5. Change processes at next hour boundary
 
 ## Security Considerations
 
@@ -173,14 +189,14 @@ If they claim now:
 - Rounding should always favor the protocol
 
 ### State Management
-- Clear stake change queuing system
+- Clear state change system
 - Atomic operations for stake changes
 - Proper overflow protection
 - Gas optimization for batch processing
 
 ### Unstaking Protection
 - Fixed delay provides market stability
-- FIFO processing prevents gaming
+- Single pending change prevents gaming
 - Continued rewards during delay maintain fairness
 - Clear unstake status tracking
 
@@ -190,12 +206,14 @@ If they claim now:
 - Automatic unstaking if not renewed
 - Early renewal allowed
 - Clear warning system as deadline approaches
+
 ### Risk Mitigations
 - Maximum stake limit to prevent manipulation
 - Rate limiting on stake changes
 - Emergency pause capabilities
 - Proper access controls
 - Automated stake return on missed renewal
+
 ## Interface Requirements
 
 ### Smart Contract
@@ -203,22 +221,92 @@ If they claim now:
 - Efficient batch processing
 - Event emission for all state changes
 - Proper error handling and revert messages
-- Unstake queue inspection functions
+- State change inspection functions
 
-### Dapp Interface
-- Display current stakes
-- Show accumulated stake-hours
-- Estimate current rewards
-- Track pending stake changes
-- Display unstaking requests and status
-- Show network total stakes
-- Historical stake tracking
+### Dapp Interface Requirements
+
+#### Core Display Elements
+- Current stakes and proportional network share
+- Accumulated stake-hours and estimated rewards
+- Network total stakes
+- Clear countdown to next hour boundary
+- Processing window indicator
+  * Standard window: "Changes process next hour"
+  * Boundary window: "Changes process in two hours"
+- Processing time estimates for all actions
+
+#### Stake Management
+- Stake input in both TTB and stake units
+- Clear minimum stake requirements
+- Pending change status and expected processing time
+- Validation before submission
+  * Sufficient balance
+  * No existing pending changes
+  * Meets minimum stake requirement
+
+#### Unstaking Management
+- Unstake request interface
+- Countdown to unstake processing
+- Expected return amount
+- Clear warning about 3-day delay
+- Option to cancel unprocessed requests
+
+#### Renewal Management
+- Time until next required renewal
+- Clear renewal countdown
+- Early renewal option
+- Automated renewal settings
+- Warning system
+  * 1 month warning
+  * 1 week warning
+  * 1 day warning
+  * Configuration options
+
+#### Network Statistics
+- Total network stakes
+- Current staker count
+- Historical stake charts
+- APR estimates based on network share
+- Network stake changes (last 24h)
+
+#### Transaction History
+- Stake/unstake history
+- Reward claim history
+- Renewal history
+- Filtering and export options
+
+#### User Settings
+- Notification preferences
+- Display units preference (TTB/stakes)
+- Renewal reminder settings
+- Auto-compound options
+
+#### Alerts and Notifications
+- Hour boundary approaching
+- Pending change status updates
+- Unstake processing complete
+- Renewal requirements
+- System status updates
+
+#### Mobile Considerations
+- Responsive design for all screens
+- Push notification support
+- Simplified view options
+- Touch-friendly controls
+
+#### Security Features
+- Connection status indicator
+- Transaction confirmation screens
+- Clear warning messages
+- Network status monitoring
+
+This interface specification ensures users can effectively interact with all contract features while maintaining a clear understanding of system state and timing.
 
 ## Future Considerations
 
 ### Scalability
 - System naturally handles large user bases efficiently
-- Only stores state changes in networkStakesByHour
+- Only stores current state
 - Low per-user storage requirements
 - Efficient batch processing of rewards
 
