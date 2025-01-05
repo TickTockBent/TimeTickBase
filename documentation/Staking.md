@@ -49,35 +49,25 @@ struct UnstakeRequest {
 struct Staker {
     uint256 currentStakes;           // Current stake units
     uint256 stakedHourAccumulator;   // Accumulated stake-hours
-    uint256 nextChangeHour;          // When stake changes take effect
     uint256 lastProcessedHour;       // Last hour accumulator was updated
     uint256 lastRenewalTimestamp;    // Last time stake was renewed
     UnstakeRequest[] unstakeQueue;   // Pending unstake requests
 }
 
 mapping(address => Staker) public stakers;
-mapping(uint256 => uint256) public networkStakesByHour;
+uint256 public networkTotalStakes;   // Total valid stakes in network
 uint256 public constant UNSTAKE_DELAY = 3 days;
-
 ```
 
 Note: Renewal preferences and notifications are handled by a separate management contract to maintain core contract immutability.
-### Renewal Processing
-1. Check lastRenewalTimestamp + 6 months ≥ current time
-2. If renewal missed:
-   - Return full stake amount to user
-   - Maintain accumulated rewards (still claimable)
-   - Zero out currentStakes
-   - Remove from active staker set
-3. Emit StakeReturnedEvent
 
 ### Core Operations
 
 #### Stake Deposit
 1. Validate stake amount (multiple of 3,600 TTB)
 2. Queue stake addition for next hour boundary
-3. Update networkStakesByHour for next hour
-4. Set nextChangeHour
+3. Stake processed at next hour boundary
+4. networkTotalStakes updated when change processes
 
 #### Stake Withdrawal Request
 1. Validate stake existence and amount
@@ -91,16 +81,17 @@ Note: Renewal preferences and notifications are handled by a separate management
 #### Process Unstaking
 1. Check for mature unstake requests (processTime <= current time)
 2. Queue stake removal for next hour boundary
-3. Update networkStakesByHour for next hour
-4. Transfer TTB after next hour evaluation
+3. Process at next hour boundary, updating networkTotalStakes
+4. Transfer TTB after hour boundary
 5. Remove request from queue
 
 #### Hourly Processing
-1. For each staker with valid stakes:
-   - Calculate proportion: stakes / total_network_stakes
+1. Process any pending stake changes
+2. Update networkTotalStakes
+3. For each staker with valid stakes:
+   - Calculate proportion: stakes / networkTotalStakes
    - Add proportion to stakedHourAccumulator
    - Update lastProcessedHour
-2. Process any pending stake changes for next hour
 
 #### Reward Claims
 1. Process any pending hours
