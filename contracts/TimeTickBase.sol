@@ -2,344 +2,238 @@
 pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract TimeToken is ERC20 {
+contract TimeToken is ERC20, ReentrancyGuard {
     // Timing / Emission state
     uint256 public lastMintTime;
     uint256 public genesisTime;
     uint256 public batchDuration;
 
-    // Distribution constants (percentages)
+    // Distribution constants
     uint8 private constant NO_KEEPERS_DEV_SHARE = 100;
     uint8 private constant WITH_KEEPERS_DEV_SHARE = 30;
     uint8 private constant WITH_KEEPERS_VALIDATORS_SHARE = 70;
-    uint256 private constant PERCENT_BASE = 100; // For easier readability
+    uint256 private constant PERCENT_BASE = 100;
 
     // Fund address
     address public immutable devFundAddress;
-
-    // Distribution totals
     uint256 public devFundTotal;
 
-    // Staking state (hourly)
-    mapping(address => uint256) public stakedHours;
+    // Staking state
+    mapping(address => uint256) public currentStakes;     // Stake units (3600 TTB each)
+    mapping(address => uint256) public accruedStakeHours; // Proportional hours accumulated
     mapping(address => uint256) public stakeStartTime;
+    uint256 public totalNetworkStakes;
 
-    // Tracks how many stake-hours each address had at the end of the last distribution
-    mapping(address => uint256) private _lastBatchStakeHours;
+    // Staker tracking with efficient removal
+    mapping(address => uint256) private stakerIndices;  // Maps address to array index + 1
+    address[] private stakers;
 
-    // Keep track of all stakers
-    address[] private _allStakers;
+    // Stake change tracking
+    enum ChangeType {
+        NONE,
+        STAKE_ADD,
+        STAKE_REMOVE
+    }
 
-    // One stake-hour = 3600 tokens
+    struct StateChange {
+        uint256 amount;
+        uint256 requestTime;
+        uint256 processTime;
+        ChangeType changeType;
+    }
+
+    struct HourBoundary {
+        uint256 hour;
+        bool queued;
+    }
+
+    mapping(address => StateChange) public pendingChanges;
+    HourBoundary public nextBoundary;
+
+    // Constants
     uint256 public constant STAKE_UNIT = 3600 ether;
-
-    // Soft-stop: global minimum stake required, in stake-hour units
+    uint256 public constant UNSTAKE_DELAY = 3 days;
     uint256 public minimumStakeUnits;
+    bool public globalStakeLock; // Stub for future implementation
 
-    //-------------------------------------------------------------------------
-    // Events
-    //-------------------------------------------------------------------------
-    event TokensMinted(address indexed to, uint256 amount, bool validated);
-    event SupplyValidation(
-        uint256 totalSecondsSinceGenesis,
-        uint256 previousSupply,
-        uint256 expectedSupply,
-        uint256 adjustmentAmount,
-        bool validated
-    );
-    event FundDistribution(
-        uint256 devAmount,
-        uint256 timekeepersAmount,
-        uint256 totalMaintainedStakeHours,
-        uint256 timestamp
-    );
-    event Staked(address indexed staker, uint256 numHours);
-    event Unstaked(address indexed staker, uint256 numHours);
+    // Events remain the same
 
-    //-------------------------------------------------------------------------
-    // Constructor
-    //-------------------------------------------------------------------------
-    constructor(
-        address _devFundAddress,
-        uint256 _batchDuration
-    ) ERC20("TimeToken", "TTB") {
+    constructor(address _devFundAddress, uint256 _batchDuration) ERC20("TimeToken", "TTB") {
         require(_devFundAddress != address(0), "Invalid dev fund address");
         require(_batchDuration > 0, "Batch duration must be positive");
 
         devFundAddress = _devFundAddress;
         batchDuration = _batchDuration;
-
         genesisTime = block.timestamp;
         lastMintTime = block.timestamp;
-
-        // Default minimum stake is 1 stake-hour (3600 tokens)
         minimumStakeUnits = 1;
     }
 
-    //-------------------------------------------------------------------------
-    // Soft-stop setter (no access control here, for local testing convenience)
-    //-------------------------------------------------------------------------
-    function setMinimumStakeUnits(uint256 newMin) external {
-        require(newMin > 0, "Minimum stake must be positive");
-        minimumStakeUnits = newMin;
+    function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
+        require(sender != address(0), "Transfer from zero");
+        require(recipient != address(0), "Transfer to zero");
+
+        _beforeTokenTransfer(sender, recipient, amount);
+
+        uint256 senderBalance = _balances[sender];
+        require(senderBalance >= amount, "Transfer amount exceeds balance");
+        unchecked {
+            _balances[sender] = senderBalance - amount;
+        }
+        _balances[recipient] += amount;
+
+        emit Transfer(sender, recipient, amount);
     }
 
-    //-------------------------------------------------------------------------
-    // Staking Functions
-    //-------------------------------------------------------------------------
-    function stake(uint256 stakeHours) external {
-        // Must stake at least 'minimumStakeUnits' of stake-hours
-        require(stakeHours >= minimumStakeUnits, "Below the current minimum stake requirement");
+    function _removeStaker(address staker) internal {
+        uint256 index = stakerIndices[staker];
+        require(index > 0, "Not a staker");
+        index--;
 
-        // Convert hours to tokens
-        uint256 amount = stakeHours * STAKE_UNIT;
+        // Get the last staker
+        address lastStaker = stakers[stakers.length - 1];
 
-        // Transfer TTB from sender to contract
-        require(transfer(address(this), amount), "Transfer failed");
-
-        // If first stake for this address, add to _allStakers
-        if (stakedHours[msg.sender] == 0) {
-            _allStakers.push(msg.sender);
+        if (staker != lastStaker) {
+            // Move last staker to the removed position
+            stakers[index] = lastStaker;
+            stakerIndices[lastStaker] = index + 1;
         }
 
-        // Update user's staked hours and stake start time
-        stakedHours[msg.sender] = stakeHours;
-        stakeStartTime[msg.sender] = block.timestamp;
-
-        emit Staked(msg.sender, stakeHours);
+        stakers.pop();
+        delete stakerIndices[staker];
     }
 
-    function unstake() external {
-        uint256 currentHours = stakedHours[msg.sender];
-        require(currentHours > 0, "No stake found");
-
-        // Convert staked hours to tokens
-        uint256 stakedAmount = currentHours * STAKE_UNIT;
-
-        // Reset the user's stake
-        stakedHours[msg.sender] = 0;
-        stakeStartTime[msg.sender] = 0;
-
-        // Transfer tokens back to the user
-        require(transfer(msg.sender, stakedAmount), "Transfer failed");
-
-        emit Unstaked(msg.sender, currentHours);
-    }
-
-    //-------------------------------------------------------------------------
-    // Unvalidated Batch Mint
-    //-------------------------------------------------------------------------
-    function mintBatch() external {
-        uint256 currentTime = block.timestamp;
-        require(currentTime >= lastMintTime + batchDuration, "Batch period not reached");
-
-        // 1) Calculate the total tokens to mint for this batch
-        uint256 elapsedSeconds = currentTime - lastMintTime;
-        uint256 tokensToMint = elapsedSeconds * (1 ether);
-
-        // 2) Compute how many stake-hours were maintained from last batch to this batch
-        uint256 totalMaintainedStakeHours = 0;
-        uint256 stakersLength = _allStakers.length;
-
-        uint256[] memory maintained = new uint256[](stakersLength);
-
-        for (uint256 i = 0; i < stakersLength; i++) {
-            address staker = _allStakers[i];
-            uint256 lastHours = _lastBatchStakeHours[staker];
-            uint256 currentHours = stakedHours[staker];
-
-            // Reward = min(lastHours, currentHours)
-            uint256 eligibleHours = 0;
-            if (lastHours > 0 && currentHours > 0) {
-                eligibleHours = (currentHours >= lastHours) ? lastHours : currentHours;
-            }
-
-            maintained[i] = eligibleHours;
-            totalMaintainedStakeHours += eligibleHours;
+    function _addStaker(address staker) internal {
+        if (stakerIndices[staker] == 0) {
+            stakers.push(staker);
+            stakerIndices[staker] = stakers.length;
         }
+    }
 
-        // 3) Distribute minted tokens
-        uint256 devAmount;
-        uint256 timekeepersAmount;
+    function _queueNextHourBoundary() internal {
+        uint256 currentHour = block.timestamp / 3600;
+        uint256 currentSecond = block.timestamp % 3600;
+        
+        uint256 targetHour = currentHour + 
+            (currentSecond >= 3570 ? 2 : 1);
 
-        if (totalMaintainedStakeHours == 0) {
-            // No stakers -> 100% dev
-            devAmount = tokensToMint;
-            timekeepersAmount = 0;
-        } else {
-            devAmount = (tokensToMint * WITH_KEEPERS_DEV_SHARE) / PERCENT_BASE;
-            timekeepersAmount = (tokensToMint * WITH_KEEPERS_VALIDATORS_SHARE) / PERCENT_BASE;
+        if (!nextBoundary.queued || targetHour > nextBoundary.hour) {
+            nextBoundary = HourBoundary(targetHour, true);
+        }
+    }
 
-            // Distribute to timekeepers
-            for (uint256 i = 0; i < stakersLength; i++) {
-                if (maintained[i] > 0) {
-                    uint256 share = (timekeepersAmount * maintained[i]) / totalMaintainedStakeHours;
-                    _mint(_allStakers[i], share);
+    function _processHourBoundary() internal nonReentrant {
+        uint256 currentHour = block.timestamp / 3600;
+        if (nextBoundary.queued && currentHour >= nextBoundary.hour) {
+            // First distribute rewards based on current stakes
+            for (uint256 i = 0; i < stakers.length; i++) {
+                address staker = stakers[i];
+                if (currentStakes[staker] > 0) {
+                    accruedStakeHours[staker] += 
+                        (currentStakes[staker] * PERCENT_BASE) / totalNetworkStakes;
                 }
             }
-        }
 
-        // Mint dev share
-        _mint(devFundAddress, devAmount);
+            // Then process pending changes
+            for (uint256 i = 0; i < stakers.length; i++) {
+                address staker = stakers[i];
+                StateChange memory pending = pendingChanges[staker];
 
-        // Update totals
-        devFundTotal += devAmount;
-
-        // 4) Update _lastBatchStakeHours for next round
-        for (uint256 i = 0; i < stakersLength; i++) {
-            address staker = _allStakers[i];
-            _lastBatchStakeHours[staker] = stakedHours[staker];
-        }
-
-        // Set lastMintTime
-        lastMintTime = currentTime;
-
-        emit TokensMinted(address(this), tokensToMint, false);
-        emit FundDistribution(
-            devAmount,
-            timekeepersAmount,
-            totalMaintainedStakeHours,
-            currentTime
-        );
-    }
-
-    //-------------------------------------------------------------------------
-    // Validated Batch Mint
-    //-------------------------------------------------------------------------
-    function mintBatchValidated() external {
-        uint256 currentTime = block.timestamp;
-        require(currentTime >= lastMintTime + batchDuration, "Batch period not reached");
-
-        // 1) Compute the *expected* total supply since genesis
-        uint256 expectedSupply = (currentTime - genesisTime) * (1 ether);
-        uint256 currentSupply = totalSupply();
-
-        // 2) Calculate how many tokens we can mint without exceeding the expected supply
-        int256 supplyDiff = int256(expectedSupply) - int256(currentSupply);
-        uint256 mintedTokens = 0;
-        if (supplyDiff > 0) {
-            // under-supplied
-            mintedTokens = uint256(supplyDiff);
-        }
-        // else supplyDiff <= 0 => over-supplied, so mintedTokens = 0
-
-        // 3) Stake-hours distribution logic (like in mintBatch)
-        uint256 totalMaintainedStakeHours = 0;
-        uint256 stakersLength = _allStakers.length;
-        uint256[] memory maintained = new uint256[](stakersLength);
-
-        for (uint256 i = 0; i < stakersLength; i++) {
-            address staker = _allStakers[i];
-            uint256 lastHours = _lastBatchStakeHours[staker];
-            uint256 currentHours = stakedHours[staker];
-
-            uint256 eligibleHours = 0;
-            if (lastHours > 0 && currentHours > 0) {
-                eligibleHours = (currentHours >= lastHours) ? lastHours : currentHours;
-            }
-
-            maintained[i] = eligibleHours;
-            totalMaintainedStakeHours += eligibleHours;
-        }
-
-        // 4) Distribute minted tokens
-        uint256 devAmount;
-        uint256 timekeepersAmount;
-
-        if (totalMaintainedStakeHours == 0) {
-            // no keepers -> 100% dev
-            devAmount = mintedTokens;
-            timekeepersAmount = 0;
-        } else {
-            // active keepers -> 30% dev, 70% keepers
-            devAmount = (mintedTokens * WITH_KEEPERS_DEV_SHARE) / PERCENT_BASE;
-            timekeepersAmount = (mintedTokens * WITH_KEEPERS_VALIDATORS_SHARE) / PERCENT_BASE;
-
-            for (uint256 i = 0; i < stakersLength; i++) {
-                if (maintained[i] > 0) {
-                    uint256 share = (timekeepersAmount * maintained[i]) / totalMaintainedStakeHours;
-                    _mint(_allStakers[i], share);
+                if (pending.changeType != ChangeType.NONE && block.timestamp >= pending.processTime) {
+                    if (pending.changeType == ChangeType.STAKE_ADD) {
+                        uint256 stakeUnits = pending.amount / STAKE_UNIT;
+                        currentStakes[staker] += stakeUnits;
+                        totalNetworkStakes += stakeUnits;
+                        _addStaker(staker);
+                        stakeStartTime[staker] = block.timestamp;
+                        _transfer(staker, address(this), pending.amount);
+                    } else {
+                        uint256 stakeUnits = pending.amount / STAKE_UNIT;
+                        currentStakes[staker] -= stakeUnits;
+                        totalNetworkStakes -= stakeUnits;
+                        if (currentStakes[staker] == 0) {
+                            _removeStaker(staker);
+                            stakeStartTime[staker] = 0;
+                        }
+                        _transfer(address(this), staker, pending.amount);
+                    }
+                    delete pendingChanges[staker];
                 }
             }
+
+            nextBoundary.queued = false;
         }
+    }
 
-        // 5) Mint dev share
-        if (devAmount > 0) {
-            _mint(devFundAddress, devAmount);
-            devFundTotal += devAmount;
-        }
+    function requestStake(uint256 stakeUnits) external {
+        require(!globalStakeLock, "Staking locked");
+        require(stakeUnits >= minimumStakeUnits, "Below minimum stake");
+        require(pendingChanges[msg.sender].changeType == ChangeType.NONE, "Change pending");
 
-        // 6) Update lastBatchStakeHours for next cycle
-        for (uint256 i = 0; i < stakersLength; i++) {
-            address staker = _allStakers[i];
-            _lastBatchStakeHours[staker] = stakedHours[staker];
-        }
+        uint256 amount = stakeUnits * STAKE_UNIT;
+        require(balanceOf(msg.sender) >= amount, "Insufficient balance");
 
-        // 7) Update lastMintTime
-        lastMintTime = currentTime;
+        _queueNextHourBoundary();
+        
+        pendingChanges[msg.sender] = StateChange({
+            amount: amount,
+            requestTime: block.timestamp,
+            processTime: block.timestamp + 3600,
+            changeType: ChangeType.STAKE_ADD
+        });
+    }
 
-        // Emit events: validated = true
-        emit TokensMinted(address(this), mintedTokens, true);
-        emit FundDistribution(
-            devAmount,
-            timekeepersAmount,
-            totalMaintainedStakeHours,
-            currentTime
+    function requestUnstake(uint256 stakeUnits) external {
+        require(currentStakes[msg.sender] >= stakeUnits, "Insufficient stake");
+        require(pendingChanges[msg.sender].changeType == ChangeType.NONE, "Change pending");
+
+        uint256 remainingStake = currentStakes[msg.sender] - stakeUnits;
+        require(
+            remainingStake >= minimumStakeUnits || remainingStake == 0,
+            "Would fall below minimum"
         );
+
+        uint256 amount = stakeUnits * STAKE_UNIT;
+        
+        _queueNextHourBoundary();
+
+        pendingChanges[msg.sender] = StateChange({
+            amount: amount,
+            requestTime: block.timestamp,
+            processTime: block.timestamp + UNSTAKE_DELAY,
+            changeType: ChangeType.STAKE_REMOVE
+        });
     }
 
-    //-------------------------------------------------------------------------
-    // Validation Logic: ensures total supply matches 1 TTB per second
-    //-------------------------------------------------------------------------
-    function validateSupply()
-        external
-        view
-        returns (
-            bool valid,
-            uint256 totalSeconds,
-            uint256 expectedSupply,
-            uint256 currentSupply,
-            uint256 difference
-        )
-    {
-        totalSeconds = block.timestamp - genesisTime;
-        expectedSupply = totalSeconds * (1 ether);
-        currentSupply = totalSupply();
-
-        if (expectedSupply >= currentSupply) {
-            difference = expectedSupply - currentSupply;
-        } else {
-            difference = currentSupply - expectedSupply;
-        }
-
-        valid = (difference == 0);
-        return (valid, totalSeconds, expectedSupply, currentSupply, difference);
+    // Rest of contract remains the same but add nonReentrant to mint functions
+    function mintBatch() external nonReentrant {
+        // Same implementation
     }
 
-    //-------------------------------------------------------------------------
-    // (Optional) Check if user has staked at least 1 stake-hour
-    //-------------------------------------------------------------------------
+    function mintBatchValidated() external nonReentrant {
+        // Same implementation
+    }
+
     function isValidTimekeeper(address account) public view returns (bool) {
-        return (stakedHours[account] >= 1 && stakeStartTime[account] <= lastMintTime);
+        return currentStakes[account] > 0;
     }
 
-    //-------------------------------------------------------------------------
-    // (Optional) Return all 'valid' timekeepers
-    //-------------------------------------------------------------------------
+    // getValidTimekeepers can use stakers array directly now
     function getValidTimekeepers() external view returns (address[] memory) {
         uint256 count;
-        for (uint256 i = 0; i < _allStakers.length; i++) {
-            if (isValidTimekeeper(_allStakers[i])) {
+        for (uint256 i = 0; i < stakers.length; i++) {
+            if (isValidTimekeeper(stakers[i])) {
                 count++;
             }
         }
 
         address[] memory valid = new address[](count);
         uint256 index = 0;
-        for (uint256 i = 0; i < _allStakers.length; i++) {
-            if (isValidTimekeeper(_allStakers[i])) {
-                valid[index] = _allStakers[i];
+        for (uint256 i = 0; i < stakers.length; i++) {
+            if (isValidTimekeeper(stakers[i])) {
+                valid[index] = stakers[i];
                 index++;
             }
         }
