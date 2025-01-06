@@ -29,7 +29,7 @@ The TimeTickBase (TTB) staking system implements a proportional reward distribut
 
 ### Unstaking Delay
 - Fixed delay period between unstaking request and token return
-- Typically several days
+- 3 days (currently)
 - Prevents rapid stake cycling and emotional responses to market events
 - Natural protection against coordinated unstaking attacks
 - One active unstake request per address
