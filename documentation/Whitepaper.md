@@ -1,10 +1,8 @@
 # TimeTickBase (TTB)
 ## Harnessing Time as Infrastructure
-*Version 1.0 – January 2025*
+*Preview Release – January 2025*
 
-#**DRAFT**#**DRAFT**#**DRAFT**#**DRAFT**#**DRAFT**#
-This is a draft copy of the TimeTickBase Whitepaper
-#**DRAFT**#**DRAFT**#**DRAFT**#**DRAFT**#**DRAFT**#
+**DRAFT DOCUMENT - FOR REVIEW ONLY**
 
 TimeTickBase transforms time itself into foundational infrastructure for the Polygon network. Through an immutable relationship between time and token generation – one TTB per second, forever – we create the first true temporal infrastructure layer for blockchain development.
 
@@ -92,4 +90,4 @@ TimeTickBase represents a fundamental shift in how we think about blockchain inf
 
 The future isn't just about keeping time – it's about harnessing it.
 
-Contact the project at: founder@clocktowertech.io
+Contact the project at: contact@timetickbase.com
