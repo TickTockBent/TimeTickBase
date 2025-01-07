@@ -6,9 +6,23 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract TimeTickBase is ERC20, ReentrancyGuard {
-    using EnumerableSet for EnumerableSet.AddressSet;
 
+    // Some people asked why I named it TimeTickBase
+    // It's because it has the same initials as my username, TTB
+    // And it's a time-based token, so TimeTickBase
+    // I'm not very creative with names, sorry
+    // But I hope you like it anyway
+    // - TTB
+
+    using EnumerableSet for EnumerableSet.AddressSet;
     // Core state
+    // Genesis time is when the contract was deployed
+    // Last mint time is when the last reward was processed
+    // Stake unit is the amount of TTB required to stake
+    // Unstake delay is the time required to wait before unstaking
+    // Renewal period is the time required to renew a stake
+    // Precision is used for calculations (might be overkill)
+
     uint256 public immutable genesisTime;
     uint256 public lastMintTime;
     uint256 public constant STAKE_UNIT = 3600 ether;  // 1 stake = 3600 TTB
@@ -17,10 +31,16 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     uint256 private constant PRECISION = 1e18;
     
     // Distribution constants
-    uint8 private constant DEV_SHARE = 30;      // 30%
-    uint8 private constant STAKER_SHARE = 70;   // 70%
+    // Dev share is the percentage of rewards going to the dev fund
+    // Staker share is the percentage of rewards going to stakers
+    // The sum of both should be 100%
+    // This is probably obvious but I'm explaining it anyway
+
+    uint8 private constant DEV_SHARE = 30;   
+    uint8 private constant STAKER_SHARE = 70;
     
-    // Staking state
+    // Staker struct
+
     struct Staker {
         uint256 stakedAmount;          // Amount of TTB staked
         uint256 unclaimedRewards;      // Pending rewards
@@ -54,7 +74,12 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         minimumStake = STAKE_UNIT;  // Start with 1 stake minimum
     }
     
-    // Staking
+    // Staking functions
+    // Staking requires a minimum amount of TTB
+    // Staking is done in whole units of STAKE_UNIT
+    // Staking is subject to unstake delay and renewal period
+    // Staking rewards are processed periodically
+
     function stake(uint256 amount) external nonReentrant {
         require(amount >= minimumStake, "Below minimum stake");
         require(amount % STAKE_UNIT == 0, "Must stake whole units");
@@ -142,6 +167,8 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     }
     
     // Claim rewards
+    // Rewards are claimed separately from staking
+
     function claimRewards() external nonReentrant {
         Staker storage staker = stakers[msg.sender];
         require(staker.unclaimedRewards > 0, "No rewards to claim");
@@ -154,6 +181,12 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     }
     
     // Process any expired stakes
+    // This is done before any reward processing
+    // Expired stakes are returned to stakers
+    // This is mostly here to prevent dead stakes
+    // Proof of life, if you will
+    // It's also a good way to clean up the staker set
+
     function _processExpiredStakes() internal {
         if (stakerSet.length() == 0) return;
         
@@ -187,6 +220,14 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     }
     
     // Regular reward processing - public interface
+    // This is called by anyone to process rewards
+    // Later this will be locked down to a specific address
+    // It will be called externally by a time-based trigger
+    // I'll probably add a governance system for this in case I die or something
+    // Or in case I hand it off to someone else
+    // BTW I'm not planning to die but you never know
+    // - TTB
+
     function processRewards() external {
         _processRewardsAndValidation(0);
     }
@@ -268,6 +309,44 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         
         return correction;
     }
+
+    // Why are you still reading this?
+    // Go stake some TTB and earn rewards
+    // Or go build something cool, that's the point of this
+    // I'm just here to help you get started
+    // - TTB
+
+    // P.S. I'm not a financial advisor
+    // This is not financial advice
+    // I'm just a developer who likes to build stuff
+    // So please don't sue me if you lose money
+    // I'm not responsible for your decisions
+    // You're a grown-up, you can make your own choices
+    // - TTB
+
+    // P.P.S. If you have any questions, feel free to ask
+    // I'm happy to help if I can
+    // contact@timetickbase.com
+    // - TTB
+
+    // P.P.P.S. I'm not planning to die
+    // I'm just saying you never know
+    // - TTB
+
+    // P.P.P.P.S. I'm not planning to hand this off to anyone either
+    // I'm just saying you never know
+    // - TTB    
+
+    // P.P.P.P.P.S. You're still reading this?
+    // Seriously, go do something else
+    // But thanks for reading this far
+    // I appreciate it
+    // Here's a cookie for you 🍪
+    // And an ascii cat
+    //  /\_/\
+    // ( o.o ) meow
+    //  > ^ <
+    // - TTB
 
     // Helper function to get all stakers
     function _getStakers() internal view returns (address[] memory) {
