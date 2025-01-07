@@ -186,8 +186,13 @@ contract TimeToken is ERC20, ReentrancyGuard {
         }
     }
     
-    // Daily validation and reward distribution
-    function processRewardsAndValidation(int256 correctionFactor) external nonReentrant {
+    // Regular reward processing - public interface
+    function processRewards() external {
+        _processRewardsAndValidation(0);
+    }
+    
+    // Internal implementation
+    function _processRewardsAndValidation(int256 correctionFactor) internal nonReentrant {
         require(block.timestamp > lastMintTime, "Already processed");
         
         // First process any expired stakes
@@ -235,21 +240,35 @@ contract TimeToken is ERC20, ReentrancyGuard {
         emit RewardsProcessed(tokensToMint, devRewards, stakerRewards, correctionFactor, correctionFactor != 0);
     }
 
-    function validateTotalTime() external returns (int256) {
+    function validateTotalTime() external nonReentrant returns (int256) {
         uint256 totalElapsedTime = block.timestamp - genesisTime;
         uint256 expectedSupply = totalElapsedTime * 1 ether;
         uint256 currentSupply = totalSupply();
         
         int256 correction = int256(expectedSupply) - int256(currentSupply);
         
+        // Limit maximum positive correction to 1 hour of tokens
+        if (correction > int256(3600 ether)) {
+            correction = int256(3600 ether);
+        }
+        
+        // Ensure correction won't result in negative emissions
+        if (correction < 0) {
+            uint256 elapsedTime = block.timestamp - lastMintTime;
+            uint256 expectedEmission = elapsedTime * 1 ether;
+            if (uint256(-correction) > expectedEmission) {
+                correction = -int256(expectedEmission);
+            }
+        }
+        
         if (correction != 0) {
             emit TimeValidation(correction);
-            processRewardsAndValidation(correction);
+            _processRewardsAndValidation(correction);
         }
         
         return correction;
     }
-    
+
     // Helper function to get all stakers
     function _getStakers() internal view returns (address[] memory) {
         return stakerSet.values();
