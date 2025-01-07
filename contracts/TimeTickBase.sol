@@ -89,6 +89,8 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         require(amount % STAKE_UNIT == 0, "Must stake whole units");
         
         // Check and process any expired stakes before adding new ones
+        // This is to prevent dead stakes
+        // And to clean up the staker set
         _processExpiredStakes();
         
         // Transfer tokens to contract
@@ -111,6 +113,14 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     }
     
     // Request unstake
+    // Unstake is subject to delay
+    // IDK why you'd want to unstake but it's here if you need it
+    // Maybe you need the tokens for something else
+    // Or maybe you're just tired of staking
+    // Or maybe you're just testing the contract
+    // Whatever the reason, it's your choice
+    // - TTB
+
     function requestUnstake(uint256 amount) external nonReentrant {
         Staker storage staker = stakers[msg.sender];
         require(staker.stakedAmount >= amount, "Insufficient stake");
@@ -123,6 +133,14 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     }
     
     // Complete unstake after delay
+    // Unstake is only allowed after the delay period
+    // Unstake returns staked tokens and pending rewards
+    // The delay is to prevent abuse
+    // Maybe I should add a cancel unstake function
+    // But I'm not sure if it's necessary
+    // I'll think about it
+    // - TTB
+
     function unstake() external nonReentrant {
         Staker storage staker = stakers[msg.sender];
         require(staker.unstakeTime > 0 && block.timestamp >= staker.unstakeTime, "Not ready");
@@ -153,6 +171,13 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     }
     
     // Renew stake
+    // Stakers can renew their stake before it expires
+    // This is to prevent dead stakes
+    // And to keep the rewards flowing to active stakers
+    // Rewards are claimed on renewal to keep things simple
+    // And keep the contract accounting clean
+    // - TTB
+
     function renewStake() external nonReentrant {
         Staker storage staker = stakers[msg.sender];
         require(staker.stakedAmount > 0, "No stake found");
@@ -172,6 +197,10 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     
     // Claim rewards
     // Rewards are claimed separately from staking
+    // This is to keep the contract clean and simple
+    // And to prevent any issues with staking
+    // Rewards are minted to the contract periodically
+    // Rewards are claimed to the staker's address
 
     function claimRewards() external nonReentrant {
         Staker storage staker = stakers[msg.sender];
@@ -225,11 +254,12 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     
     // Regular reward processing - public interface
     // This is called by anyone to process rewards
-    // Later this will be locked down to a specific address
-    // It will be called externally by a time-based trigger
-    // I'll probably add a governance system for this in case I die or something
-    // Or in case I hand it off to someone else
-    // BTW I'm not planning to die but you never know
+    // I decided to leave this public
+    // So anyone can call it if they want to
+    // It's a public service, if you will
+    // And it's a good way to keep the rewards flowing
+    // You can spam it, but you'll just waste gas
+    // So don't do that, it's not nice
     // - TTB
 
     function processRewards() external {
