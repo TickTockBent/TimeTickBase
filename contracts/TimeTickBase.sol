@@ -43,7 +43,8 @@ contract TimeToken is ERC20, ReentrancyGuard {
     event RewardsClaimed(address indexed staker, uint256 amount);
     event StakeRenewed(address indexed staker);
     event StakeExpired(address indexed staker, uint256 amount, uint256 rewards);
-    event RewardsProcessed(uint256 totalRewards, uint256 devShare, uint256 stakerShare);
+    event TimeValidation(int256 correctionFactor);
+    event RewardsProcessed(uint256 totalRewards, uint256 devShare, uint256 stakerShare, int256 correctionFactor, bool validated);
     
     constructor(address _devFundAddress) ERC20("TimeToken", "TTB") {
         require(_devFundAddress != address(0), "Invalid dev fund address");
@@ -186,8 +187,8 @@ contract TimeToken is ERC20, ReentrancyGuard {
     }
     
     // Daily validation and reward distribution
-    function processRewardsAndValidation() external nonReentrant {
-        require(block.timestamp > lastMintTime, "Already processed");;
+    function processRewardsAndValidation(int256 correctionFactor) external nonReentrant {
+        require(block.timestamp > lastMintTime, "Already processed");
         
         // First process any expired stakes
         _processExpiredStakes();
@@ -195,6 +196,13 @@ contract TimeToken is ERC20, ReentrancyGuard {
         // Calculate tokens to mint
         uint256 elapsedTime = block.timestamp - lastMintTime;
         uint256 tokensToMint = elapsedTime * 1 ether; // 1 token per second
+        
+        // Apply correction if any  
+        if (correctionFactor > 0) {
+            tokensToMint += uint256(correctionFactor);
+        } else if (correctionFactor < 0) {
+            tokensToMint -= uint256(-correctionFactor);
+        }
         
         // Mint new tokens to this contract
         _mint(address(this), tokensToMint);
@@ -224,7 +232,22 @@ contract TimeToken is ERC20, ReentrancyGuard {
         
         lastMintTime = block.timestamp;
         
-        emit RewardsProcessed(tokensToMint, devRewards, stakerRewards);
+        emit RewardsProcessed(tokensToMint, devRewards, stakerRewards, correctionFactor, correctionFactor != 0);
+    }
+
+    function validateTotalTime() external returns (int256) {
+        uint256 totalElapsedTime = block.timestamp - genesisTime;
+        uint256 expectedSupply = totalElapsedTime * 1 ether;
+        uint256 currentSupply = totalSupply();
+        
+        int256 correction = int256(expectedSupply) - int256(currentSupply);
+        
+        if (correction != 0) {
+            emit TimeValidation(correction);
+            processRewardsAndValidation(correction);
+        }
+        
+        return correction;
     }
     
     // Helper function to get all stakers
