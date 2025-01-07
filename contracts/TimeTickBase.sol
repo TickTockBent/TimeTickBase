@@ -9,7 +9,11 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
 
     // Some people asked why I named it TimeTickBase
     // It's because it has the same initials as my username, TTB
-    // And it's a time-based token, so TimeTickBase
+    // And it's a time-based token
+    // And TickBase sounds cool
+    // So I combined them
+    // TimeTickBase
+    // It's like a time-based tick-tock token
     // I'm not very creative with names, sorry
     // But I hope you like it anyway
     // - TTB
