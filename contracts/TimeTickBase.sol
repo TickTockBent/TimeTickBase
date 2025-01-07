@@ -187,7 +187,7 @@ contract TimeToken is ERC20, ReentrancyGuard {
     
     // Daily validation and reward distribution
     function processRewardsAndValidation() external nonReentrant {
-        require(block.timestamp >= lastMintTime + 1 days, "Too soon");
+        require(block.timestamp > lastMintTime, "Already processed");;
         
         // First process any expired stakes
         _processExpiredStakes();
