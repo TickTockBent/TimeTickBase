@@ -352,4 +352,12 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     function _getStakers() internal view returns (address[] memory) {
         return stakerSet.values();
     }
+
+    // Really, go do something else
+    // I'm just rambling at this point
+    // I just finished the first draft of this contract
+    // And I'm feeling a bit loopy
+    // But I'm happy with how it turned out
+    // And I'm excited to test it
+    // - TTB 01/07/2025
 }
