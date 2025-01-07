@@ -19,6 +19,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     // - TTB
 
     using EnumerableSet for EnumerableSet.AddressSet;
+
     // Core state
     // Genesis time is when the contract was deployed
     // Last mint time is when the last reward was processed
@@ -26,6 +27,8 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     // Unstake delay is the time required to wait before unstaking
     // Renewal period is the time required to renew a stake
     // Precision is used for calculations (might be overkill)
+    // I'll think about it later
+    // - TTB
 
     uint256 public immutable genesisTime;
     uint256 public lastMintTime;
@@ -39,6 +42,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     // Staker share is the percentage of rewards going to stakers
     // The sum of both should be 100%
     // This is probably obvious but I'm explaining it anyway
+    // - TTB
 
     uint8 private constant DEV_SHARE = 30;   
     uint8 private constant STAKER_SHARE = 70;
@@ -83,6 +87,11 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     // Staking is done in whole units of STAKE_UNIT
     // Staking is subject to unstake delay and renewal period
     // Staking rewards are processed periodically
+    // Staking rewards are minted to the contract
+    // Staking rewards are claimed by stakers and distributed to dev fund
+    // Staking rewards are distributed to stakers based on their share of total staked
+    // So claim your rewards regularly to keep the rewards flowing
+    // - TTB
 
     function stake(uint256 amount) external nonReentrant {
         require(amount >= minimumStake, "Below minimum stake");
