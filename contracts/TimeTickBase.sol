@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-contract TimeToken is ERC20, ReentrancyGuard {
+contract TimeTickBase is ERC20, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     // Core state
@@ -46,7 +46,7 @@ contract TimeToken is ERC20, ReentrancyGuard {
     event TimeValidation(int256 correctionFactor);
     event RewardsProcessed(uint256 totalRewards, uint256 devShare, uint256 stakerShare, int256 correctionFactor, bool validated);
     
-    constructor(address _devFundAddress) ERC20("TimeToken", "TTB") {
+    constructor(address _devFundAddress) ERC20("TimeTickBase", "TTB") {
         require(_devFundAddress != address(0), "Invalid dev fund address");
         devFundAddress = _devFundAddress;
         genesisTime = block.timestamp;
