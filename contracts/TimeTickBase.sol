@@ -65,6 +65,13 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     EnumerableSet.AddressSet private stakerSet;
     
     // Events
+    // I like events, they're fun
+    // And they're useful for debugging
+    // And for tracking contract activity
+    // So I added a bunch of events
+    // I hope you like them
+    // - TTB
+
     event Staked(address indexed staker, uint256 amount);
     event UnstakeRequested(address indexed staker, uint256 amount);
     event Unstaked(address indexed staker, uint256 amount);
