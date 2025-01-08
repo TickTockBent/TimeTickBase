@@ -54,19 +54,6 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     uint256 private constant DEV_SHARE = 30;   
     uint256 private constant STAKER_SHARE = 70;
 
-    // Add validation for percentages
-    // This is to prevent mistakes
-    // And to ensure the shares total 100
-    // I like to be safe with these things
-    // It's probably overkill but I like it
-    // - TTB
-
-    constructor() ERC20("TimeTickBase", "TTB") {
-        require(DEV_SHARE + STAKER_SHARE == 100, "Shares must total 100");
-        genesisTime = block.timestamp;
-        lastMintTime = block.timestamp;
-    }
-
     // Add validation for PRECISION
     // This is to ensure the precision is valid
     // I like to be safe with these things, as I said
@@ -210,7 +197,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         // So long as it doesn't bring them below the minimum stake
         // But for now, it's all or nothing
         // - TTB
-        
+
         totalStaked -= amount;
         staker.stakedAmount = 0;
         staker.unstakeTime = 0;
