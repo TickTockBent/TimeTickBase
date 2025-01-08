@@ -46,8 +46,13 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     // This is probably obvious but I'm explaining it anyway
     // - TTB
 
-    uint8 private constant DEV_SHARE = 30;   
-    uint8 private constant STAKER_SHARE = 70;
+    // Change uint8 to uint256 for consistency and gas optimization
+    // Also, I like to be explicit with types
+    // It's a good habit, I think
+    // - TTB
+
+    uint256 private constant DEV_SHARE = 30;   
+    uint256 private constant STAKER_SHARE = 70;
     
     // Staker struct
     // Stakers are tracked by address
