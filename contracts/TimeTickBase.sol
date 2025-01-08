@@ -48,6 +48,13 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     uint8 private constant STAKER_SHARE = 70;
     
     // Staker struct
+    // Stakers are tracked by address
+    // Stakers have a staked amount
+    // Stakers have unclaimed rewards
+    // Stakers have a last renewal time
+    // Stakers have an unstake time
+    // Stakers are stored in a set for easy tracking
+    // - TTB
 
     struct Staker {
         uint256 stakedAmount;          // Amount of TTB staked
