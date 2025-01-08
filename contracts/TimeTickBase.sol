@@ -179,6 +179,28 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         emit Unstaked(msg.sender, amount);
     }
     
+    // Cancel unstake request
+    // This is to prevent unstake if you change your mind
+    // Or if you accidentally requested unstake
+    // I thought about it and decided to add this function
+    // It's a good way to prevent mistakes
+    // And to keep the contract clean
+    // - TTB
+
+    function cancelUnstake() external nonReentrant {
+        Staker storage staker = stakers[msg.sender];
+        require(staker.unstakeTime > 0, "No unstake request");
+        require(staker.stakedAmount > 0, "No stake found");
+        
+        // Reset unstake time
+        staker.unstakeTime = 0;
+        
+        emit UnstakeCancelled(msg.sender, staker.stakedAmount);
+    }
+
+// Add this event at the top with other events
+event UnstakeCancelled(address indexed staker, uint256 amount);
+
     // Renew stake
     // Stakers can renew their stake before it expires
     // This is to prevent dead stakes
