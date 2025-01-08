@@ -202,6 +202,15 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         uint256 amount = staker.stakedAmount;
         
         // Clear stake
+        // This removes the entire stake
+        // And will then return the tokens
+        // It will also remove the staker from the staker set
+        // and force claim any pending rewards
+        // I will probably let people partially unstake in the future
+        // So long as it doesn't bring them below the minimum stake
+        // But for now, it's all or nothing
+        // - TTB
+        
         totalStaked -= amount;
         staker.stakedAmount = 0;
         staker.unstakeTime = 0;
