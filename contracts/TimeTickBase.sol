@@ -106,7 +106,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     event TimeValidation(int256 correctionFactor);
     event RewardsProcessed(uint256 totalRewards, uint256 devShare, uint256 stakerShare, int256 correctionFactor, bool validated);
     event UnstakeCancelled(address indexed staker, uint256 amount);
-    
+
     constructor(address _devFundAddress) ERC20("TimeTickBase", "TTB") {
         require(_devFundAddress != address(0), "Invalid dev fund address");
         devFundAddress = _devFundAddress;
@@ -286,7 +286,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         
         uint256 rewards = staker.unclaimedRewards;
         staker.unclaimedRewards = 0;
-        require(transfer(msg.sender, rewards), "Transfer failed");
+        _transfer(msg.sender, rewards);
         
         emit RewardsClaimed(msg.sender, rewards);
     }
@@ -323,7 +323,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
                 stakerSet.remove(stakerAddr);
                 
                 // Return tokens (stake + rewards)
-                require(transfer(stakerAddr, amount + rewards), "Transfer failed");
+                _transfer(stakerAddr, amount + rewards);
                 
                 emit StakeExpired(stakerAddr, amount, rewards);
             }
