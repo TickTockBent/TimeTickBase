@@ -364,7 +364,7 @@ event UnstakeCancelled(address indexed staker, uint256 amount);
         uint256 stakerRewards = tokensToMint - devRewards;
         
         // Send dev share
-        require(transfer(devFundAddress, devRewards), "Dev transfer failed");
+        require(_transfer(address(this), devFundAddress, devRewards), "Dev transfer failed");
         
         // Distribute staker share if there are stakers
         if (totalStaked > 0) {
