@@ -369,10 +369,14 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         uint256 devRewards = (tokensToMint * DEV_SHARE) / 100;
         uint256 stakerRewards = tokensToMint - devRewards;
         
-        // Send dev share
-        _transfer(address(this), devFundAddress, devRewards);
-        
         // Distribute staker share if there are stakers
+        // 70% go to stakers, 30% go to dev fund
+        // This is the default distribution
+        // If there are no stakers, all rewards go to dev fund
+        // But there should always be stakers
+        // Except at genesis, but that's a special case
+        // - TTB
+        
         if (totalStaked > 0) {
             address[] memory _stakers = stakerSet.values();
             for (uint256 i = 0; i < _stakers.length; i++) {
@@ -386,7 +390,19 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
                     staker.unclaimedRewards += share;
                 }
             }
+        } else {
+            // If no stakers, add staker share to dev rewards
+            devRewards += stakerRewards;
         }
+
+        // Send dev share (30% if stakers exist, 100% if no stakers)
+        // Dev fund gets full emissions if no stakers
+        // This is mostly to fund the genesis fountain
+        // There should never be no stakers, except at genesis
+        // But this will catch any edge cases as well
+        // - TTB
+
+        _transfer(address(this), devFundAddress, devRewards);
         
         lastMintTime = block.timestamp;
         
