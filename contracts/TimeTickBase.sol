@@ -219,12 +219,12 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         if (staker.unclaimedRewards > 0) {
             uint256 rewards = staker.unclaimedRewards;
             staker.unclaimedRewards = 0;
-            require(transfer(msg.sender, rewards), "Reward transfer failed");
+            _transfer(address(this), msg.sender, rewards);
             emit RewardsClaimed(msg.sender, rewards);
         }
         
         // Return staked tokens
-        _transfer(msg.sender, amount);
+        _transfer(address(this), msg.sender, amount);
         
         emit Unstaked(msg.sender, amount);
     }
@@ -265,7 +265,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         if (staker.unclaimedRewards > 0) {
             uint256 rewards = staker.unclaimedRewards;
             staker.unclaimedRewards = 0;
-            require(transfer(msg.sender, rewards), "Reward transfer failed");
+            _transfer(address(this), msg.sender, rewards);
             emit RewardsClaimed(msg.sender, rewards);
         }
         
@@ -286,7 +286,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         
         uint256 rewards = staker.unclaimedRewards;
         staker.unclaimedRewards = 0;
-        _transfer(msg.sender, rewards);
+        _transfer(address(this), msg.sender, rewards);
         
         emit RewardsClaimed(msg.sender, rewards);
     }
@@ -323,7 +323,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
                 stakerSet.remove(stakerAddr);
                 
                 // Return tokens (stake + rewards)
-                _transfer(stakerAddr, amount + rewards);
+                _transfer(address(this), stakerAddr, amount + rewards);
                 
                 emit StakeExpired(stakerAddr, amount, rewards);
             }
