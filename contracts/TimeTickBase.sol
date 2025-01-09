@@ -105,6 +105,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     event StakeExpired(address indexed staker, uint256 amount, uint256 rewards);
     event TimeValidation(int256 correctionFactor);
     event RewardsProcessed(uint256 totalRewards, uint256 devShare, uint256 stakerShare, int256 correctionFactor, bool validated);
+    event UnstakeCancelled(address indexed staker, uint256 amount);
     
     constructor(address _devFundAddress) ERC20("TimeTickBase", "TTB") {
         require(_devFundAddress != address(0), "Invalid dev fund address");
@@ -162,6 +163,14 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     // Whatever the reason, it's your choice
     // - TTB
 
+    // Turns out using transfer instead of _transfer makes a difference
+    // By leaving off the _ I was trying to transfer tokens from the user's wallet on unstake
+    // Which is obviously not what I want
+    // I want to transfer tokens from the contract back to the user
+    // So I need to use _transfer instead of transfer
+    // I'm glad I caught that before deploying
+    // - TTB
+
     function requestUnstake(uint256 amount) external nonReentrant {
         Staker storage staker = stakers[msg.sender];
         require(staker.stakedAmount >= amount, "Insufficient stake");
@@ -215,7 +224,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         }
         
         // Return staked tokens
-        require(transfer(msg.sender, amount), "Stake transfer failed");
+        _transfer(msg.sender, amount);
         
         emit Unstaked(msg.sender, amount);
     }
@@ -238,9 +247,6 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         
         emit UnstakeCancelled(msg.sender, staker.stakedAmount);
     }
-
-// Add this event at the top with other events
-event UnstakeCancelled(address indexed staker, uint256 amount);
 
     // Renew stake
     // Stakers can renew their stake before it expires
@@ -364,7 +370,7 @@ event UnstakeCancelled(address indexed staker, uint256 amount);
         uint256 stakerRewards = tokensToMint - devRewards;
         
         // Send dev share
-        require(_transfer(address(this), devFundAddress, devRewards), "Dev transfer failed");
+        _transfer(address(this), devFundAddress, devRewards);
         
         // Distribute staker share if there are stakers
         if (totalStaked > 0) {
