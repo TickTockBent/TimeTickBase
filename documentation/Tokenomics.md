@@ -1,15 +1,17 @@
 # TimeTickBase (TTB) Tokenomics
-*Version 2.0 – December 2024*
+*Version 3.0 – January 2024*
 
 ## Token Generation
 - Fixed emission rate of 1 TTB per second
-- Rewards claimed by Dapp
-- Unclaimed rewards released in batched weekly distributions
+- Rewards claimed by dApp, or directly via wallet interaction
+- Unclaimed rewards accumulate
+- No pre-mine, pre-sale, or initial team allocation
+- Token supply starts at zero
 - Supply increases linearly with time
-- No pre-mine or initial allocation
-- Supply validation through block timestamps
+- Regular supply validation through block timestamps to avoid drift
 - Overflow protection and precision handling implemented
 - No ability to mint arbitrary tokens
+- No supply manipulation possible
 
 ## Distribution Model
 
@@ -49,17 +51,22 @@
 - Stakes a single share (1 stake-hour) which results in an initial 70% network emissions
 - Natural dilution as stakers join
 
-### Slot Distribution
+### Slot Distribution (This may change depending on grant funding)
 - Community Development: 10 slots
+  - To be given out for community involvement
 - Social Engagement: 10 slots
+  - To be given out for marketing and promotion
 - Random Selection: 10 slots
+  - Random selection from the community, no requirement to enter
 - Development Reserve: 10 slots
-- Development Funding: 10 slots
+  - Reserved for code contributions, audit compensation, or other technical assistance
+- Company Holding: 10 slots
+  - Slots reserved for the company, tokens to be used in future projects
 
 ### Fountain Timeline
 1. First 3 months: Network stake-locked
-   - No individual staking allowed
-   - No new aggregator contracts accepted
+   - No individual staking
+   - No new aggregator contracts
    - Genesis Fountain will be the only share active
 2. Month 4-12
    - Genesis Fountain remains 1 stake-hour (1 share)
