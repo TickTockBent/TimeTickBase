@@ -134,5 +134,3 @@ During batch mint:
 - Total staker count
 - Historical reward data
 - Basic network statistics
-
-This specification provides the foundation for implementing the TTB staking system while maintaining simplicity and security. The system prioritizes predictability and fairness while implementing necessary protections against manipulation.
