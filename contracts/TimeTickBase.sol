@@ -347,7 +347,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     }
     
     // Internal implementation
-    function _processRewardsAndValidation(int256 correctionFactor) internal nonReentrant {
+    function _processRewardsAndValidation(int256 correctionFactor) internal {
         require(block.timestamp > lastMintTime, "Already processed");
         
         // First process any expired stakes
