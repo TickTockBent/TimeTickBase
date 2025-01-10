@@ -136,7 +136,8 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         _processExpiredStakes();
         
         // Transfer tokens from user to contract
-        ERC20.transferFrom(msg.sender, address(this), amount);
+        bool success = super.transferFrom(msg.sender, address(this), amount);
+        require(success, "Transfer failed");
         
         Staker storage staker = stakers[msg.sender];
         require(staker.unstakeTime == 0, "Unstake pending");
