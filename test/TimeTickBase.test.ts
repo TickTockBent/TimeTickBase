@@ -98,6 +98,65 @@ describe("TimeTickBase", function () {
       // Check with tolerance
       expect(isWithinRange(stakerInfo[1], expectedBase, 10n)).to.be.true; // Allow 10 seconds of variance
     });
-  });
+    it("Should handle time validation correctly", async function() {
+      // Similar setup to previous test
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      const addr1Contract = ttb.connect(addr1);
+      
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await addr1Contract.stake(stakeAmount);
+      
+      // Advance time
+      await time.increase(3600);
+      
+      // Use validation instead of normal processing
+      const correction = await ttb.validateTotalTime();
+      console.log("Time correction:", correction.toString());
   
+      // Check rewards - should be similar to processRewards
+      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+      const expectedRewards = ethers.parseEther("2520"); // Same calculation as above
+      expect(isWithinRange(stakerInfo[1], expectedRewards)).to.be.true;
+    });  
+    it("Should handle unstaking process correctly", async function() {
+      // Initial setup
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      const addr1Contract = ttb.connect(addr1);
+      
+      // Get initial balance for later comparison
+      const initialBalance = await ttb.balanceOf(addr1.getAddress());
+      
+      // Setup stake
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await addr1Contract.stake(stakeAmount);
+      
+      // Request unstake
+      await addr1Contract.requestUnstake(stakeAmount);
+      
+      // Verify unstake request
+      let stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+      expect(stakerInfo[3]).to.be.gt(0n); // Unstake time should be set
+      
+      // Advance time past unstake delay (3 days)
+      await time.increase(3 * 24 * 3600 + 10); // 3 days + buffer
+      
+      // Complete unstake
+      await addr1Contract.unstake();
+      
+      // Verify unstake completed
+      stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+      expect(stakerInfo[0]).to.equal(0n); // Stake amount should be 0
+      expect(stakerInfo[3]).to.equal(0n); // Unstake time should be cleared
+      
+      // Verify tokens returned
+      const finalBalance = await ttb.balanceOf(addr1.getAddress());
+      expect(finalBalance).to.be.gte(initialBalance + stakeAmount); // Should have at least initial + stake back
+    });
+  });  
 });
