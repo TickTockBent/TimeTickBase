@@ -80,7 +80,10 @@
    - After month 8 staking is freely open to anyone with at least 1 stake-hour
 
 ## Development Fund
-- Dev fund controls TBD
+- Multisig controls
+- Fixed release of dev fund tokens to cover gas fees
+- Fixed release of def fund tokens to cover salaries and expenses
+- Governance controls for dev fund token release to cover other situations
 
 ### Usage
 - Development costs
