@@ -42,27 +42,30 @@ describe("TimeTickBase", function () {
       // Initial reward processing
       await time.increase(14400);
       await ttb.processRewards();
-  
+    
       const stakeAmount = ethers.parseEther("3600");
+      const contractAddress = await ttb.getAddress();
+      const addr1Address = await addr1.getAddress();
       
       // Transfer tokens to addr1
-      const addr1Address = await addr1.getAddress();
       await ttb.connect(devFund).transfer(addr1Address, stakeAmount);
       
       // Create a single contract instance for addr1 and use it consistently
       const addr1Contract = ttb.connect(addr1);
       
       // Approve using addr1's instance
-      await addr1Contract.approve(await ttb.getAddress(), stakeAmount);
+      await addr1Contract.approve(contractAddress, stakeAmount);
       
       // Log everything before stake
       console.log("\nFinal check before stake:");
+      console.log("Contract address:", contractAddress);
+      console.log("Addr1 address:", addr1Address);
       console.log("Addr1 balance:", (await ttb.balanceOf(addr1Address)).toString());
-      console.log("Allowance:", (await ttb.allowance(addr1Address, await ttb.getAddress())).toString());
+      console.log("Allowance:", (await ttb.allowance(addr1Address, contractAddress)).toString());
       console.log("Staking with address:", await addr1Contract.signer.getAddress());
       
       // Stake using the same addr1 instance
       await addr1Contract.stake(stakeAmount);
-  });
+    });
   });
 });
