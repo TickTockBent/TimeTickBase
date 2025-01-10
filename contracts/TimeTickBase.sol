@@ -476,12 +476,44 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     //  > ^ <
     // - TTB
 
+    // These functions gets all the staker info
+    // It will be used for the front-end
+    // So people can see their staking status
+    // And claim rewards
+    // And renew stakes
+    // And all that good stuff
+    // - TTB
+
+    function getStakerInfo(address staker) external view returns (
+        uint256 stakedAmount,
+        uint256 unclaimedRewards,
+        uint256 lastRenewalTime,
+        uint256 unstakeTime
+    ) {
+        Staker storage s = stakers[staker];
+        return (s.stakedAmount, s.unclaimedRewards, s.lastRenewalTime, s.unstakeTime);
+    }
+
+    function getNetworkStats() external view returns (
+        uint256 totalStakedAmount,
+        uint256 totalStakers,
+        uint256 rewardRate,  // Will be 1 ether (1e18) per second
+        uint256 minimumStakeRequired
+    ) {
+        return (
+            totalStaked,
+            stakerSet.length(),
+            1 ether,
+            minimumStake
+        );
+    }
+
     // Helper function to get all stakers
     function _getStakers() internal view returns (address[] memory) {
         return stakerSet.values();
     }
 
-    // Really, go do something else
+    // Really though, go do something else
     // I'm just rambling at this point
     // I just finished the first draft of this contract
     // And I'm feeling a bit loopy
