@@ -67,5 +67,37 @@ describe("TimeTickBase", function () {
       // Stake using the same addr1 instance
       await addr1Contract.stake(stakeAmount);
     });
+    it("Should distribute rewards correctly via processRewards", async function () {
+      // Initial stake setup
+      await time.increase(14400); // 4 hours for initial tokens
+      await ttb.processRewards();
+  
+      const stakeAmount = ethers.parseEther("3600");
+      const addr1Contract = ttb.connect(addr1);
+      
+      // Transfer and stake
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await addr1Contract.stake(stakeAmount);
+  
+      // Advance time and process rewards
+      await time.increase(3600); // 1 hour
+      const expectedBase = ethers.parseEther("2520"); // Base expectation: 3600 * 0.7
+      
+      // Process rewards and check elapsed time
+      const before = await time.latest();
+      await ttb.processRewards();
+      const after = await time.latest();
+      
+      console.log("Process rewards took:", after - before, "seconds");
+      
+      // Get actual rewards
+      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+      console.log("Expected base rewards:", expectedBase.toString());
+      console.log("Actual rewards:", stakerInfo[1].toString());
+      
+      // Check with tolerance
+      expect(isWithinRange(stakerInfo[1], expectedBase, 10n)).to.be.true; // Allow 10 seconds of variance
+    });
   });
+  
 });
