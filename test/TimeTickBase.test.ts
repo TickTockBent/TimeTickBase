@@ -112,25 +112,29 @@ describe("TimeTickBase", function () {
       // Advance time
       await time.increase(3600);
       
-      // Use validation and log details
+      // Use callStatic to get the return value without altering the state
       const before = await time.latest();
-      const correction = await ttb.validateTotalTime();
+      const correction = await ttb.callStatic.validateTotalTime();
       const after = await time.latest();
       
       console.log("\nValidation details:");
       console.log("Execution time:", after - before, "seconds");
       console.log("Time correction:", correction.toString());
-  
+    
+      // Send the actual transaction to update the state
+      const tx = await ttb.validateTotalTime();
+      await tx.wait();
+      
       // Get and log actual rewards
       const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
       const expectedBase = ethers.parseEther("2520"); // 3600 * 0.7
       
       console.log("\nRewards comparison:");
       console.log("Expected base rewards:", expectedBase.toString());
-      console.log("Actual rewards:", stakerInfo[1].toString());
+      console.log("Actual rewards:", stakerInfo.unclaimedRewards.toString());
       
       // Check with increased tolerance since validation might take longer
-      expect(isWithinRange(stakerInfo[1], expectedBase, 15n)).to.be.true; // Increased to 15 seconds tolerance
+      expect(isWithinRange(stakerInfo.unclaimedRewards, expectedBase, 15n)).to.be.true; // Increased to 15 seconds tolerance
     });
     it("Should handle unstaking process correctly", async function() {
       // Initial setup
