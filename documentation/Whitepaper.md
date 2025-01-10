@@ -16,7 +16,7 @@ The budget research painted a stark picture. Scam projects cut corners and launc
 
 ### Core Innovation
 
-TimeTickBase emerged from this frustration. One token per second, forever. No administrators, no upgrades, no minting functions. The contract runs on time itself, as predictable and unchangeable as the sunrise.
+TimeTickBase emerged from this frustration. One token per second, forever. No administrators, no upgrades, no minting functions. The contract runs on time itself, as predictable and unchangeable as sunrise.
 
 The mechanism strips away complexity:
 - Each second generates exactly one token
@@ -54,7 +54,9 @@ Security, simplicity, and stability guide our rollout:
 1. Core implementation and testing
 2. Developer tools and templates
 3. Ecosystem growth
-4. Community governance
+4. Full transition to community governance
+
+The governance transition isn't an afterthought—it's built into TTB's DNA. Each component, from the staking system to the development fund, incorporates mechanisms for gradual decentralization. My role is to build a foundation solid enough that I can walk away, leaving a truly community-owned protocol. No founder privileges, no special access, no reserved powers.
 
 ### Vision
 
