@@ -417,7 +417,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         uint256 normalMint = elapsedTime * 1 ether;
         
         // Calculate what total supply should be after this mint
-        uint256 expectedSupply = currentSupply() + normalMint;
+        uint256 expectedSupply = totalSupply() + normalMint;
         
         // Calculate what supply SHOULD be based on genesis time
         uint256 totalElapsedTime = block.timestamp - genesisTime;
