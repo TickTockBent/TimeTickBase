@@ -62,7 +62,7 @@ describe("TimeTickBase", function () {
       console.log("Addr1 address:", addr1Address);
       console.log("Addr1 balance:", (await ttb.balanceOf(addr1Address)).toString());
       console.log("Allowance:", (await ttb.allowance(addr1Address, contractAddress)).toString());
-      console.log("Staking with address:", await addr1Contract.signer.getAddress());
+      console.log("Connected address:", await addr1.getAddress());  // Changed this line
       
       // Stake using the same addr1 instance
       await addr1Contract.stake(stakeAmount);
