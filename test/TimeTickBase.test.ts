@@ -27,7 +27,7 @@ describe("TimeTickBase", function () {
 
   beforeEach(async function () {
     // Get signers
-    [owner, addr1, addr2, devFund] = await ethers.getSigners();
+    [owner, devFund, addr1, addr2] = await ethers.getSigners();
 
     // Simple deployment pattern that we know works
     const TimeTickBaseFactory = await ethers.getContractFactory("TimeTickBase");
