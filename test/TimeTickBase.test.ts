@@ -54,9 +54,9 @@ describe("TimeTickBase", function () {
       const devFundBalance = await ttb.balanceOf(devFund.address);
       console.log("Dev fund balance:", devFundBalance.toString());
       
-      // Verify balance is within expected range
-      expect(devFundBalance).to.be.gt(expectedDevFundTokens.sub(tolerance));
-      expect(devFundBalance).to.be.lt(expectedDevFundTokens.add(tolerance));
+      // Verify balance is within expected range using BigInt operations
+      expect(devFundBalance).to.be.gt(expectedDevFundTokens - tolerance);
+      expect(devFundBalance).to.be.lt(expectedDevFundTokens + tolerance);
     
       // 4. Transfer stake amount to test user (addr1)
       const stakeAmount = ethers.parseEther("3600");
