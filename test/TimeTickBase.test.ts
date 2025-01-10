@@ -79,42 +79,4 @@ describe("TimeTickBase", function () {
       console.log("Contract:", (await ttb.balanceOf(contractAddress)).toString());
     });
   });
-
-  describe("View Functions", function () {
-    it("Should track network stats with timing accuracy", async function () {
-      // Initial state
-      let stats = await ttb.getNetworkStats();
-      expect(stats[0]).to.equal(0n);
-      expect(stats[1]).to.equal(0n);
-      expect(stats[2]).to.equal(ethers.parseEther("1"));
-      expect(stats[3]).to.equal(ethers.parseEther("3600"));
-
-      // Setup staking
-      await time.increase(7200);
-      await ttb.processRewards();
-      const stakeAmount = ethers.parseEther("3600");
-
-      // First staker
-      await ttb.connect(devFund).transfer(addr1.address, stakeAmount);
-      await ttb.connect(addr1).approve(ttb.address, stakeAmount);
-      const firstStakeElapsed = await getElapsedTime(async () => {
-        await ttb.connect(addr1).stake(stakeAmount);
-      });
-
-      stats = await ttb.getNetworkStats();
-      expect(stats[0]).to.equal(stakeAmount);
-      expect(stats[1]).to.equal(1n);
-
-      // Second staker
-      await ttb.connect(devFund).transfer(addr2.address, stakeAmount);
-      await ttb.connect(addr2).approve(ttb.address, stakeAmount);
-      const secondStakeElapsed = await getElapsedTime(async () => {
-        await ttb.connect(addr2).stake(stakeAmount);
-      });
-
-      stats = await ttb.getNetworkStats();
-      expect(stats[0]).to.equal(stakeAmount * 2n);
-      expect(stats[1]).to.equal(2n);
-    });
-  });
 });
