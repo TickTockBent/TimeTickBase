@@ -99,45 +99,19 @@ describe("TimeTickBase", function () {
       expect(isWithinRange(stakerInfo[1], expectedBase, 10n)).to.be.true; // Allow 10 seconds of variance
     });
     it("Should handle time validation correctly", async function() {
-      // Initial setup
       await time.increase(14400);
       await ttb.processRewards();
       
       const stakeAmount = ethers.parseEther("3600");
-      const addr1Contract = ttb.connect(addr1);
+      await ttb.connect(devFund).transfer(addr1.address, stakeAmount);
+      await ttb.connect(addr1).stake(stakeAmount);
       
-      await ttb.connect(devFund).transfer(await addr1.getAddress(), stakeAmount);
-      await addr1Contract.stake(stakeAmount);
-      
-      // Advance time
       await time.increase(3600);
       
-      // Get validation results
-      const before = await time.latest();
-      const correction = await ttb.validateTotalTime.staticCall();
-      const after = await time.latest();
+      await ttb.validateTotalTime();
       
-      console.log("\nValidation details:");
-      console.log("Execution time:", Number(after - before), "seconds");
-      console.log("Time correction:", correction.toString());
-  
-      // Update state
-      const tx = await ttb.validateTotalTime();
-      await tx.wait();
-      
-      // Get and log rewards
-      const stakerInfo = await ttb.getStakerInfo(await addr1.getAddress());
-      const expectedBase = ethers.parseEther("2520"); // 3600 * 0.7
-      
-      console.log("\nRewards comparison:");
-      console.log("Expected base:", expectedBase.toString());
-      console.log("Actual rewards:", stakerInfo.unclaimedRewards.toString());
-      
-      // Helper function for range check
-      const isWithinRange = (actual: bigint, expected: bigint, tolerance: bigint) => {
-          const diff = actual > expected ? actual - expected : expected - actual;
-          return diff <= tolerance;
-      };
+      const stakerInfo = await ttb.getStakerInfo(addr1.address);
+      const expectedBase = ethers.parseEther("2520");
       
       expect(isWithinRange(stakerInfo.unclaimedRewards, expectedBase, 15n)).to.be.true;
     });

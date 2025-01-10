@@ -355,7 +355,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
         
         // Calculate tokens to mint
         uint256 elapsedTime = block.timestamp - lastMintTime;
-        uint256 tokensToMint = elapsedTime * 1 ether; // 1 token per second
+        uint256 tokensToMint = (elapsedTime * 1 ether) / PRECISION;
         
         // Apply correction if any  
         if (correctionFactor > 0) {
@@ -414,14 +414,14 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     function validateTotalTime() external nonReentrant returns (int256) {
         // First calculate how many tokens would be minted normally
         uint256 elapsedTime = block.timestamp - lastMintTime;
-        uint256 normalMint = elapsedTime * 1 ether;
+        uint256 normalMint = (elapsedTime * 1 ether) / PRECISION;
         
         // Calculate what total supply should be after this mint
         uint256 expectedSupply = totalSupply() + normalMint;
         
         // Calculate what supply SHOULD be based on genesis time
         uint256 totalElapsedTime = block.timestamp - genesisTime;
-        uint256 correctSupply = totalElapsedTime * 1 ether;
+        uint256 correctSupply = (totalElapsedTime * 1 ether) / PRECISION;
         
         // Correction is the difference between what we'd have after normal mint
         // and what we should have based on total elapsed time
