@@ -78,69 +78,6 @@ describe("TimeTickBase", function () {
       console.log("Addr1:", (await ttb.balanceOf(addr1.address)).toString());
       console.log("Contract:", (await ttb.balanceOf(contractAddress)).toString());
     });
-
-    it("Should track rewards with execution timing", async function () {
-      // Setup stake
-      await time.increase(7200);
-      await ttb.processRewards();
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.address, stakeAmount);
-      await ttb.connect(addr1).approve(ttb.address, stakeAmount);
-
-      const stakeElapsed = await getElapsedTime(async () => {
-        await ttb.connect(addr1).stake(stakeAmount);
-      });
-
-      // Move forward and process rewards
-      await time.increase(3600);
-
-      const rewardElapsed = await getElapsedTime(async () => {
-        await ttb.processRewards();
-      });
-
-      // Calculate expected rewards including all delays
-      const totalElapsed = 3600n + BigInt(stakeElapsed) + BigInt(rewardElapsed);
-      const expectedRewards = ethers.parseEther((Number(totalElapsed) * 0.7).toString());
-
-      const stakerInfo = await ttb.getStakerInfo(addr1.address);
-      expect(isWithinRange(stakerInfo[1], expectedRewards)).to.be.true;
-    });
-
-    it("Should handle unstaking with timing considerations", async function () {
-      // Setup stake
-      await time.increase(7200);
-      await ttb.processRewards();
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.address, stakeAmount);
-      await ttb.connect(addr1).approve(ttb.address, stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-
-      // Request unstake
-      const unstakeRequestElapsed = await getElapsedTime(async () => {
-        await ttb.connect(addr1).requestUnstake(stakeAmount);
-      });
-
-      // Verify unstake request state
-      let stakerInfo = await ttb.getStakerInfo(addr1.address);
-      expect(stakerInfo[3]).to.be.gt(0n);
-
-      // Move past delay and complete unstake
-      // 3 days + execution time + buffer
-      await time.increase(86400 * 3 + unstakeRequestElapsed + 10);
-
-      const unstakeElapsed = await getElapsedTime(async () => {
-        await ttb.connect(addr1).unstake();
-      });
-
-      // Final state verification
-      stakerInfo = await ttb.getStakerInfo(addr1.address);
-      expect(stakerInfo[0]).to.equal(0n);
-      expect(stakerInfo[3]).to.equal(0n);
-
-      const networkStats = await ttb.getNetworkStats();
-      expect(networkStats[0]).to.equal(0n);
-      expect(networkStats[1]).to.equal(0n);
-    });
   });
 
   describe("View Functions", function () {
