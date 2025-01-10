@@ -9,7 +9,7 @@ The TimeTickBase (TTB) staking system implements a straightforward staking mecha
 ### Basic Units
 - One stake unit = 3,600 TTB
 - Stakes must be complete units (no fractional stakes)
-- Minimum stake requirement varies by phase
+- Minimum stake requirement varies by phase, decreasing during Genesis Fountain and eventually reaching 1 stake-hour
 
 ### Staking Process
 - Stake requests process immediately
@@ -19,10 +19,11 @@ The TimeTickBase (TTB) staking system implements a straightforward staking mecha
 
 ### Renewal Requirement
 - Stakes must be renewed every 6 months
+- Accumulated rewards claimed on renewal to prevent buildup of large unclaimed rewards
 - Serves as proof-of-life mechanism
 - No penalty for renewal beyond timeframe
 - Non-renewed stakes automatically returned
-- Accumulated rewards remain claimable
+- Accumulated rewards claimed on stake return to prevent buildup of large unclaimed rewards
 
 ## Technical Implementation
 
@@ -46,17 +47,17 @@ uint256 public totalNetworkStakes;
 ```
 
 ### Reward Distribution
-- Occurs during batch minting operations
-- Based on current stake proportions
-- 70% of emissions to stakers
-- Proportional to stake amount vs total network stakes
+- Occurs during _processRewardsAndValidation operations which can be called by anyone
+- The user calling the function pays the gas for the operation
+- Rewards are based on current stake proportions (user hours staked/total hours staked)
+- 70% of emissions are divided amongst active stakers
 
 ### Safety Mechanisms
 - 3-day unstaking delay prevents gaming
 - Minimum stake requirements
 - Single pending change per address
 - Automatic stake return if not renewed
-- Emergency pause capabilities
+- Emergency pause capabilities (Eventually controlled by governance)
 
 ## Examples
 
@@ -69,7 +70,7 @@ Starting State:
 - Charlie: 7,000 stakes (70%)
 
 During batch mint:
-- Total rewards = 86,400 TTB (1 day of emissions)
+- Total emissions = 86,400 TTB (1 day of emissions)
 - Staker portion = 60,480 TTB (70%)
 - Alice receives: 6,048 TTB (10%)
 - Bob receives: 12,096 TTB (20%)
@@ -78,11 +79,12 @@ During batch mint:
 
 ### Unstaking Example
 ```
-1. Bob requests to unstake 1,000 stakes at T
+1. Bob requests to unstake 1,000 (3,600,000 TTB) stakes at time T
 2. Request creates state change with processTime = T + 3 days
 3. Stake continues earning rewards normally
-4. At T + 3 days, stake reduces by 1,000
-5. Tokens return to Bob's wallet
+4. At T + 3 days, Bob can unstake
+5. When unstake processes, stake reduces by 1,000
+6. Tokens return to Bob's wallet (3,600,000 TTB)
 ```
 
 ## Security Considerations
