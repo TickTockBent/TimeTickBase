@@ -108,10 +108,22 @@ describe("TimeTickBase", function () {
       
       await time.increase(3600);
       
-      // Fix timing variables
+      console.log("\nPre-validation state:");
+      console.log("Last mint time:", Number(await ttb.lastMintTime()));
+      console.log("Current time:", await time.latest());
+      console.log("Expected tokens to mint:", (await time.latest()) - Number(await ttb.lastMintTime()));
+
       const before = await time.latest();
       const tx = await ttb.validateTotalTime();
       const receipt = await tx.wait();
+      console.log("\nTransaction events:");
+      const rewardsEvent = receipt.events?.find(e => e.event === 'RewardsProcessed');
+      console.log("Rewards event:", rewardsEvent ? {
+          totalRewards: rewardsEvent.args?.totalRewards.toString(),
+          devShare: rewardsEvent.args?.devShare.toString(),
+          stakerShare: rewardsEvent.args?.stakerShare.toString(),
+          correctionFactor: rewardsEvent.args?.correctionFactor.toString()
+      } : "No rewards event found");
       const correction = receipt.events?.find(e => e.event === 'TimeValidation')?.args?.correctionFactor;
       const after = await time.latest();
       
