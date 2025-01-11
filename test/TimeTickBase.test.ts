@@ -568,18 +568,67 @@ describe("TimeTickBase", function () {
       const mock = await ReentrancyMock.deploy(await ttb.getAddress());
       await mock.waitForDeployment();
       
-      // Setup
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(await mock.getAddress(), stakeAmount * 2n);
+      // Initial setup
+      await time.increase(14400);
+      await ttb.processRewards();
       
-      // Test each function
+      const stakeAmount = ethers.parseEther("3600");
+      const mockAddress = await mock.getAddress();
+      
+      // Transfer initial tokens and set up stake
+      await ttb.connect(devFund).transfer(mockAddress, stakeAmount);
+      await mock.connect(owner).stake(stakeAmount);
+      
+      // Generate some rewards
+      await time.increase(3600);
+      await ttb.processRewards();
+      
+      // Test each function type
       for(let i = 1; i <= 5; i++) {
-          await mock.setAttackType(i);
-          await expect(mock.connect(addr1)[getAttackFunction(i)]())
-              .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
+          // Set up specific test conditions based on attack type
+          await setupAttackConditions(i, mock, ttb, stakeAmount);
+          
+          // Attempt the attack
+          await expect(
+              mock.connect(addr1)[getAttackFunction(i)]()
+          ).to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
       }
-    });
-
+  });
+  
+  async function setupAttackConditions(
+      attackType: number, 
+      mock: any, 
+      ttb: any, 
+      stakeAmount: bigint
+  ) {
+      await mock.setAttackType(attackType);
+      
+      switch(attackType) {
+          case 1: // Stake attack
+              // Ensure mock has enough balance for another stake
+              await ttb.connect(devFund).transfer(await mock.getAddress(), stakeAmount);
+              break;
+              
+          case 2: // Renew attack
+              // Already staked in initial setup
+              break;
+              
+          case 3: // Unstake attack
+              // Request unstake first
+              await mock.connect(owner).requestUnstake(stakeAmount);
+              await time.increase(3 * 24 * 3600 + 10); // Past unstake delay
+              break;
+              
+          case 4: // Cancel unstake attack
+              await mock.connect(owner).requestUnstake(stakeAmount);
+              break;
+              
+          case 5: // Claim attack
+              // Should have rewards from initial setup
+              break;
+      }
+  }
+  
   function getAttackFunction(type: number): string {
       switch(type) {
           case 1: return "attackStake";
@@ -589,6 +638,6 @@ describe("TimeTickBase", function () {
           case 5: return "attackClaim";
           default: return "";
       }
-  }    
+  }
   });
 });
