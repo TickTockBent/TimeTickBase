@@ -365,12 +365,29 @@ describe("TimeTickBase", function () {
       const tx = await ttb.validateTotalTime();
       const receipt = await tx.wait();
       
-      // Find the TimeValidation event
-      const event = receipt.events?.find(e => e.event === 'TimeValidation');
-      expect(event).to.not.be.undefined;
+      // Find the TimeValidation event - ethers v6 syntax
+      const event = receipt?.logs?.find(log => {
+          try {
+              const decoded = ttb.interface.parseLog({
+                  topics: [...log.topics],
+                  data: log.data
+              });
+              return decoded?.name === 'TimeValidation';
+          } catch {
+              return false;
+          }
+      });
+
+      expect(event, "TimeValidation event not found").to.not.be.undefined;
       
-      const correctionFactor = event?.args?.correctionFactor;
+      // Parse the event data
+      const decoded = ttb.interface.parseLog({
+          topics: [...event.topics],
+          data: event.data
+      });
+      
+      const correctionFactor = decoded.args[0];
       expect(correctionFactor).to.be.lte(ethers.parseEther("3600")); // Max correction
-    });
+  });
   });
 });
