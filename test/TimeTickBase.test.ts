@@ -516,7 +516,7 @@ describe("TimeTickBase", function () {
       
       // 3599 should not
       await expect(ttb.connect(addr1).stake(stakeAmount - 1n))
-          .to.be.revertedWith("Must stake whole units");
+          .to.be.revertedWith("Below minimum stake");
     });
 
     it("Should test stake renewal and unstake cancellation", async function () {
