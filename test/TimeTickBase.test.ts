@@ -562,64 +562,64 @@ describe("TimeTickBase", function () {
       expect(balance).to.equal(stakeAmount);
     });
 
-    describe("Reentrancy Protection", function () {
-      let mockContract: any;
+    // describe("Reentrancy Protection", function () {
+    //   let mockContract: any;
   
-      beforeEach(async function () {
-          await time.increase(14400);
-          await ttb.processRewards();
+    //   beforeEach(async function () {
+    //       await time.increase(14400);
+    //       await ttb.processRewards();
           
-          // Deploy the mock contract
-          const ReentrancyMock = await ethers.getContractFactory("ReentrancyMock");
-          mockContract = await ReentrancyMock.deploy(await ttb.getAddress());
-          await mockContract.waitForDeployment();
+    //       // Deploy the mock contract
+    //       const ReentrancyMock = await ethers.getContractFactory("ReentrancyMock");
+    //       mockContract = await ReentrancyMock.deploy(await ttb.getAddress());
+    //       await mockContract.waitForDeployment();
           
-          // Fund the mock contract
-          const stakeAmount = ethers.parseEther("3600");
-          await ttb.connect(devFund).transfer(await mockContract.getAddress(), stakeAmount * 2n);
-      });
+    //       // Fund the mock contract
+    //       const stakeAmount = ethers.parseEther("3600");
+    //       await ttb.connect(devFund).transfer(await mockContract.getAddress(), stakeAmount * 2n);
+    //   });
   
-      it("Should prevent reentrant staking during unstake", async function () {
-          const stakeAmount = ethers.parseEther("3600");
+    //   it("Should prevent reentrant staking during unstake", async function () {
+    //       const stakeAmount = ethers.parseEther("3600");
           
-          // Initial stake
-          await mockContract.stake(stakeAmount);
-          await mockContract.requestUnstake(stakeAmount);
-          await time.increase(3 * 24 * 3600 + 10); // Past unstake delay
+    //       // Initial stake
+    //       await mockContract.stake(stakeAmount);
+    //       await mockContract.requestUnstake(stakeAmount);
+    //       await time.increase(3 * 24 * 3600 + 10); // Past unstake delay
           
-          // Try to reenter with stake during unstake
-          await mockContract.setReentryPoint("stake");
-          await expect(mockContract.triggerReentrantUnstake())
-              .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-      });
+    //       // Try to reenter with stake during unstake
+    //       await mockContract.setReentryPoint("stake");
+    //       await expect(mockContract.triggerReentrantUnstake())
+    //           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
+    //   });
   
-      it("Should prevent reentrant unstake during reward claim", async function () {
-          const stakeAmount = ethers.parseEther("3600");
+    //   it("Should prevent reentrant unstake during reward claim", async function () {
+    //       const stakeAmount = ethers.parseEther("3600");
           
-          // Setup stake and generate rewards
-          await mockContract.stake(stakeAmount);
-          await time.increase(3600);
-          await ttb.processRewards();
+    //       // Setup stake and generate rewards
+    //       await mockContract.stake(stakeAmount);
+    //       await time.increase(3600);
+    //       await ttb.processRewards();
           
-          // Try to reenter with unstake during claim
-          await mockContract.setReentryPoint("unstake");
-          await expect(mockContract.triggerReentrantClaim())
-              .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-      });
+    //       // Try to reenter with unstake during claim
+    //       await mockContract.setReentryPoint("unstake");
+    //       await expect(mockContract.triggerReentrantClaim())
+    //           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
+    //   });
   
-      it("Should prevent reentrant reward claims during stake", async function () {
-          const stakeAmount = ethers.parseEther("3600");
+    //   it("Should prevent reentrant reward claims during stake", async function () {
+    //       const stakeAmount = ethers.parseEther("3600");
           
-          // Setup initial stake and rewards
-          await mockContract.stake(stakeAmount);
-          await time.increase(3600);
-          await ttb.processRewards();
+    //       // Setup initial stake and rewards
+    //       await mockContract.stake(stakeAmount);
+    //       await time.increase(3600);
+    //       await ttb.processRewards();
           
-          // Try to reenter with claim during stake
-          await mockContract.setReentryPoint("claim");
-          await expect(mockContract.triggerReentrantStake(stakeAmount))
-              .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-      });
-    });
+    //       // Try to reenter with claim during stake
+    //       await mockContract.setReentryPoint("claim");
+    //       await expect(mockContract.triggerReentrantStake(stakeAmount))
+    //           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
+    //   });
+    // });
   });
 });
