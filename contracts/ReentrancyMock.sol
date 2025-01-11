@@ -11,6 +11,9 @@ contract ReentrancyMock {
         ttb = TimeTickBase(_ttb);
     }
     
+    // Allow contract to receive tokens
+    receive() external payable {}
+    
     // Attack types:
     // 1 = stake
     // 2 = renew
@@ -21,6 +24,7 @@ contract ReentrancyMock {
         attackType = _type;
     }
     
+    // This is called by ERC20 hooks during token operations
     function onERC20Received(address, uint256) external returns (bool) {
         if (attacking) {
             if (attackType == 1) ttb.stake(3600 ether);
@@ -32,8 +36,14 @@ contract ReentrancyMock {
         return true;
     }
 
-    // Additional functions in ReentrancyMock
+    // Helper function to approve TTB spending
+    function approveTokens(uint256 amount) external {
+        ttb.approve(address(ttb), amount);
+    }
+    
+    // Additional functions for attack setup
     function stake(uint256 amount) external {
+        ttb.approve(address(ttb), amount);
         ttb.stake(amount);
     }
 
@@ -41,8 +51,10 @@ contract ReentrancyMock {
         ttb.requestUnstake(amount);
     }
 
+    // Attack functions
     function attackStake() external {
         attacking = true;
+        ttb.approve(address(ttb), 3600 ether);
         ttb.stake(3600 ether);
         attacking = false;
     }
