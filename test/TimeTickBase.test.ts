@@ -572,10 +572,6 @@ describe("TimeTickBase", function () {
       await ttb.connect(devFund).transfer(addr1.getAddress(), totalAmount);
       await ttb.connect(addr1).stake(stakeAmount);
       
-      // Test stake reentrancy
-      await expect(ttb.connect(addr1).stake(stakeAmount))
-          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-      
       // Test renew reentrancy
       await expect(ttb.connect(addr1).renewStake())
           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
@@ -594,6 +590,19 @@ describe("TimeTickBase", function () {
       
       // Test claim rewards reentrancy
       await expect(ttb.connect(addr1).claimRewards())
+          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
+    });
+
+    it("Should test reentrancy protection on staking function", async function () {
+      const ReentrancyMock = await ethers.getContractFactory("ReentrancyMock");
+      const mock = await ReentrancyMock.deploy(ttb.address);
+      
+      // Setup initial balance for mock
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(mock.address, stakeAmount * 2n);
+      
+      // Should revert with reentrancy error
+      await expect(mock.attackStake(stakeAmount))
           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
     });
   });
