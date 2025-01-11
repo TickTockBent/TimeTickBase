@@ -110,12 +110,16 @@ describe("TimeTickBase", function () {
       
       // Fix timing variables
       const before = await time.latest();
-      const correction = await ttb.validateTotalTime();
+      const tx = await ttb.validateTotalTime();
+      const receipt = await tx.wait();
+      const correction = receipt.events?.find(e => e.event === 'TimeValidation')?.args?.correctionFactor;
       const after = await time.latest();
       
+
       console.log("\nValidation details:");
       console.log("Execution time:", after - before, "seconds");
       console.log("Raw correction:", correction);
+      console.log("Correction toString:", correction?.toString());
       console.log("Correction type:", typeof correction);
       if (typeof correction === 'object') {
           console.log("Correction properties:", Object.keys(correction));
