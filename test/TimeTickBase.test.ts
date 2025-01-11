@@ -562,6 +562,62 @@ describe("TimeTickBase", function () {
       expect(balance).to.equal(stakeAmount);
     });
 
+    describe("Event Emissions", function () {
+      it("Should emit correct events for a full stake lifecycle", async function () {
+          await time.increase(14400);
+          await ttb.processRewards();
+          
+          const stakeAmount = ethers.parseEther("3600");
+          await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+          
+          // Test Stake event
+          await expect(ttb.connect(addr1).stake(stakeAmount))
+              .to.emit(ttb, "Staked")
+              .withArgs(addr1.getAddress(), stakeAmount);
+              
+          // Test RewardsProcessed event
+          await time.increase(3600);
+          const tx = await ttb.processRewards();
+          const receipt = await tx.wait();
+          const rewardsEvent = receipt?.logs?.find(log => {
+              try {
+                  const decoded = ttb.interface.parseLog({
+                      topics: [...log.topics],
+                      data: log.data
+                  });
+                  return decoded?.name === 'RewardsProcessed';
+              } catch {
+                  return false;
+              }
+          });
+          expect(rewardsEvent).to.not.be.undefined;
+          
+          // Test UnstakeRequested event
+          await expect(ttb.connect(addr1).requestUnstake(stakeAmount))
+              .to.emit(ttb, "UnstakeRequested")
+              .withArgs(addr1.getAddress(), stakeAmount);
+              
+          // Test UnstakeCancelled event
+          await expect(ttb.connect(addr1).cancelUnstake())
+              .to.emit(ttb, "UnstakeCancelled")
+              .withArgs(addr1.getAddress(), stakeAmount);
+              
+          // Test StakeRenewed event
+          await expect(ttb.connect(addr1).renewStake())
+              .to.emit(ttb, "StakeRenewed")
+              .withArgs(addr1.getAddress());
+              
+          // Re-request unstake for final test
+          await ttb.connect(addr1).requestUnstake(stakeAmount);
+          await time.increase(3 * 24 * 3600 + 10);
+          
+          // Test Unstaked event
+          await expect(ttb.connect(addr1).unstake())
+              .to.emit(ttb, "Unstaked")
+              .withArgs(addr1.getAddress(), stakeAmount);
+      });
+  });
+
     // describe("Reentrancy Protection", function () {
     //   let mockContract: any;
   
