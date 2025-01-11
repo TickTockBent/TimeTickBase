@@ -342,7 +342,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
     // So don't do that, it's not nice
     // - TTB
 
-    function processRewards() external {
+    function processRewards() external nonReentrant {
         _processRewardsAndValidation(0);
     }
     
