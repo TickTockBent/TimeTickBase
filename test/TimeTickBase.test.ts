@@ -498,4 +498,101 @@ describe("TimeTickBase", function () {
       expect(stakerInfo.unclaimedRewards).to.be.approximately(expectedRewards, ethers.parseEther("10"));
     });
   });
+  describe("Targeted Tests", function () {
+
+    it("Should test atomic stake unit boundaries, 3600 should work, 3601 or 3599 should not.", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      
+      // 3600 should work
+      await ttb.connect(addr1).stake(stakeAmount);
+      
+      // 3601 should not
+      await expect(ttb.connect(addr1).stake(stakeAmount + 1n))
+          .to.be.revertedWith("Must stake whole units");
+      
+      // 3599 should not
+      await expect(ttb.connect(addr1).stake(stakeAmount - 1n))
+          .to.be.revertedWith("Must stake whole units");
+    });
+
+    it("Should test stake renewal and unstake cancellation", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await ttb.connect(addr1).stake(stakeAmount);
+      
+      // Renew stake
+      await time.increase(179 * 24 * 3600); // Just before renewal period
+      await ttb.connect(addr1).renewStake();
+      
+      // Cancel unstake
+      await ttb.connect(addr1).requestUnstake(stakeAmount);
+      await ttb.connect(addr1).cancelUnstake();
+      
+      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+      expect(stakerInfo.lastRenewalTime).to.be.approximately(BigInt(await time.latest()), 10n);
+      expect(stakerInfo.unstakeTime).to.equal(0n);
+    });
+
+    it("Should test expired stakes returning tokens", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await ttb.connect(addr1).stake(stakeAmount);
+      
+      // Move past renewal period (180 days + 1 day for safety)
+      await time.increase(181 * 24 * 3600);
+      
+      // Process rewards should trigger expired stake processing
+      await ttb.processRewards();
+      
+      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+      expect(stakerInfo.stakedAmount).to.equal(0n);
+      
+      // Check balance returned (stake amount)
+      const balance = await ttb.balanceOf(addr1.getAddress());
+      expect(balance).to.equal(stakeAmount);
+    });
+
+    it("Should test reentrancy protection on all functions", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await ttb.connect(addr1).stake(stakeAmount);
+      
+      // Reentrancy protection on stake
+      await expect(ttb.connect(addr1).stake(stakeAmount))
+          .to.be.revertedWith("Reentrancy guard");
+      
+      // Reentrancy protection on renewStake
+      await expect(ttb.connect(addr1).renewStake())
+          .to.be.revertedWith("Reentrancy guard");
+      
+      // Reentrancy protection on requestUnstake
+      await expect(ttb.connect(addr1).requestUnstake(stakeAmount))
+          .to.be.revertedWith("Reentrancy guard");
+      
+      // Reentrancy protection on unstake
+      await expect(ttb.connect(addr1).unstake())
+          .to.be.revertedWith("Reentrancy guard");
+      
+      // Reentrancy protection on cancelUnstake
+      await expect(ttb.connect(addr1).cancelUnstake())
+          .to.be.revertedWith("Reentrancy guard");
+      
+      // Reentrancy protection on claimRewards
+      await expect(ttb.connect(addr1).claimRewards())
+          .to.be.revertedWith("Reentrancy guard");
+    });
+  });
 });
