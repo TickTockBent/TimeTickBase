@@ -570,29 +570,24 @@ describe("TimeTickBase", function () {
       await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
       await ttb.connect(addr1).stake(stakeAmount);
       
-      // Reentrancy protection on stake
+      // Update all revert checks to match OpenZeppelin's custom error
       await expect(ttb.connect(addr1).stake(stakeAmount))
-          .to.be.revertedWith("Reentrancy guard");
+          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
       
-      // Reentrancy protection on renewStake
       await expect(ttb.connect(addr1).renewStake())
-          .to.be.revertedWith("Reentrancy guard");
+          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
       
-      // Reentrancy protection on requestUnstake
       await expect(ttb.connect(addr1).requestUnstake(stakeAmount))
-          .to.be.revertedWith("Reentrancy guard");
+          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
       
-      // Reentrancy protection on unstake
       await expect(ttb.connect(addr1).unstake())
-          .to.be.revertedWith("Reentrancy guard");
+          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
       
-      // Reentrancy protection on cancelUnstake
       await expect(ttb.connect(addr1).cancelUnstake())
-          .to.be.revertedWith("Reentrancy guard");
+          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
       
-      // Reentrancy protection on claimRewards
       await expect(ttb.connect(addr1).claimRewards())
-          .to.be.revertedWith("Reentrancy guard");
+          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
     });
   });
 });
