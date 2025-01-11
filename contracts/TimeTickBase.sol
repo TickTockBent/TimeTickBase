@@ -448,11 +448,9 @@ contract TimeTickBase is ERC20, ReentrancyGuard {
             }
         }
         
-        if (correction != 0) {
-            emit TimeValidation(correction);
-            _processRewardsAndValidation(correction);
-        }
-        
+        emit TimeValidation(correction);
+        _processRewardsAndValidation(correction);
+               
         return correction;
     }
 
