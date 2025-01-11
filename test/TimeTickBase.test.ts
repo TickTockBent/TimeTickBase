@@ -299,5 +299,68 @@ describe("TimeTickBase", function () {
       const finalInfo = await ttb.getStakerInfo(addr1.getAddress());
       expect(finalInfo.unclaimedRewards).to.equal(0n);
     });
+    it("Should handle multiple reward cycles correctly", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await ttb.connect(addr1).stake(stakeAmount);
+      
+      // Process rewards multiple times
+      for(let i = 0; i < 5; i++) {
+          await time.increase(3600); // 1 hour each
+          await ttb.processRewards();
+      }
+      
+      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+      // Should have 5 hours worth of rewards (70% of 5 * 3600)
+      const expectedRewards = ethers.parseEther("12600"); // 5 * 3600 * 0.7
+      expect(stakerInfo.unclaimedRewards).to.be.approximately(expectedRewards, ethers.parseEther("10"));
+  });
+  
+  it("Should enforce minimum stake requirements", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const belowMin = ethers.parseEther("3599"); // Just below minimum
+      await ttb.connect(devFund).transfer(addr1.getAddress(), belowMin);
+      
+      await expect(ttb.connect(addr1).stake(belowMin))
+          .to.be.revertedWith("Below minimum stake");
+  });
+  
+  it("Should report accurate network statistics", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await ttb.connect(addr1).stake(stakeAmount);
+      
+      const stats = await ttb.getNetworkStats();
+      expect(stats.totalStakedAmount).to.equal(stakeAmount);
+      expect(stats.totalStakers).to.equal(1n);
+      expect(stats.rewardRate).to.equal(ethers.parseEther("1"));
+      expect(stats.minimumStakeRequired).to.equal(ethers.parseEther("3600"));
+  });
+  
+  it("Should handle large time gaps correctly", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await ttb.connect(addr1).stake(stakeAmount);
+      
+      // Create a large time gap
+      await time.increase(30 * 24 * 3600); // 30 days
+      
+      // Validate should handle this correctly
+      const correction = await ttb.validateTotalTime();
+      
+      // Check that correction is within bounds
+      expect(correction).to.be.lte(ethers.parseEther("3600")); // Max correction
+    });
   });
 });
