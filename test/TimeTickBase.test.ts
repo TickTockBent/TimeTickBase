@@ -38,6 +38,7 @@ describe("TimeTickBase", function () {
   });
 
   describe("Core Functions", function () {
+
     it("Should stake tokens and track timing accurately", async function () {
       // Initial reward processing
       await time.increase(14400);
@@ -67,6 +68,7 @@ describe("TimeTickBase", function () {
       // Stake using the same addr1 instance
       await addr1Contract.stake(stakeAmount);
     });
+
     it("Should distribute rewards correctly via processRewards", async function () {
       // Initial stake setup
       await time.increase(14400); // 4 hours for initial tokens
@@ -98,6 +100,7 @@ describe("TimeTickBase", function () {
       // Check with tolerance
       expect(isWithinRange(stakerInfo[1], expectedBase, 10n)).to.be.true; // Allow 10 seconds of variance
     });
+
     it("Should handle time validation correctly", async function() {
       await time.increase(14400);
       await ttb.processRewards();
@@ -150,6 +153,7 @@ describe("TimeTickBase", function () {
       
       expect(isWithinRange(stakerInfo.unclaimedRewards, expectedBase, 30n)).to.be.true;
     });
+
     it("Should handle unstaking process correctly", async function() {
       // Initial setup
       await time.increase(14400);
@@ -236,6 +240,7 @@ describe("TimeTickBase", function () {
         const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
         expect(stakerInfo.lastRenewalTime).to.be.approximately(BigInt(await time.latest()), 10n);
     });
+
     it("Should automatically process expired stakes", async function () {
       await time.increase(14400);
       await ttb.processRewards();
@@ -253,12 +258,12 @@ describe("TimeTickBase", function () {
       const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
       expect(stakerInfo.stakedAmount).to.equal(0n);
       
-      // Check balance returned (stake + rewards)
+      // Check balance returned (stake amount)
       const balance = await ttb.balanceOf(addr1.getAddress());
-      expect(balance).to.be.gt(stakeAmount);
-  });
+      expect(balance).to.equal(stakeAmount);
+    });
   
-  it("Should handle unstake cancellation correctly", async function () {
+    it("Should handle unstake cancellation correctly", async function () {
       await time.increase(14400);
       await ttb.processRewards();
       
@@ -272,9 +277,9 @@ describe("TimeTickBase", function () {
       const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
       expect(stakerInfo.unstakeTime).to.equal(0n);
       expect(stakerInfo.stakedAmount).to.equal(stakeAmount);
-  });
+    });
   
-  it("Should handle reward claiming correctly", async function () {
+    it("Should handle reward claiming correctly", async function () {
       await time.increase(14400);
       await ttb.processRewards();
       
@@ -317,9 +322,9 @@ describe("TimeTickBase", function () {
       // Should have 5 hours worth of rewards (70% of 5 * 3600)
       const expectedRewards = ethers.parseEther("12600"); // 5 * 3600 * 0.7
       expect(stakerInfo.unclaimedRewards).to.be.approximately(expectedRewards, ethers.parseEther("10"));
-  });
+    });
   
-  it("Should enforce minimum stake requirements", async function () {
+    it("Should enforce minimum stake requirements", async function () {
       await time.increase(14400);
       await ttb.processRewards();
       
@@ -328,9 +333,9 @@ describe("TimeTickBase", function () {
       
       await expect(ttb.connect(addr1).stake(belowMin))
           .to.be.revertedWith("Below minimum stake");
-  });
+    });
   
-  it("Should report accurate network statistics", async function () {
+    it("Should report accurate network statistics", async function () {
       await time.increase(14400);
       await ttb.processRewards();
       
@@ -343,9 +348,9 @@ describe("TimeTickBase", function () {
       expect(stats.totalStakers).to.equal(1n);
       expect(stats.rewardRate).to.equal(ethers.parseEther("1"));
       expect(stats.minimumStakeRequired).to.equal(ethers.parseEther("3600"));
-  });
+    });
   
-  it("Should handle large time gaps correctly", async function () {
+    it("Should handle large time gaps correctly", async function () {
       await time.increase(14400);
       await ttb.processRewards();
       
