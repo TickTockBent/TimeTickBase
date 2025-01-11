@@ -605,5 +605,23 @@ describe("TimeTickBase", function () {
       await expect(mock.attackStake(stakeAmount))
           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
     });
+
+    it("Should test reentrancy protection", async function () {
+      // Deploy mock
+      const ReentrancyMock = await ethers.getContractFactory("ReentrancyMock");
+      const mock = await ReentrancyMock.deploy(await ttb.getAddress());
+      await mock.waitForDeployment();
+      
+      // Fund mock
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(await mock.getAddress(), stakeAmount * 2n);
+      
+      // Approve tokens
+      await ttb.connect(mock).approve(await ttb.getAddress(), stakeAmount * 2n);
+      
+      // Test attack
+      await expect(mock.attackStake())
+          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
+    });
   });
 });
