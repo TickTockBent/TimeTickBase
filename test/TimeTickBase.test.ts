@@ -566,26 +566,33 @@ describe("TimeTickBase", function () {
       await time.increase(14400);
       await ttb.processRewards();
       
+      // Setup initial balance and stake
       const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      const totalAmount = stakeAmount * 2n;
+      await ttb.connect(devFund).transfer(addr1.getAddress(), totalAmount);
       await ttb.connect(addr1).stake(stakeAmount);
       
-      // Update all revert checks to match OpenZeppelin's custom error
+      // Test stake reentrancy
       await expect(ttb.connect(addr1).stake(stakeAmount))
           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
       
+      // Test renew reentrancy
       await expect(ttb.connect(addr1).renewStake())
           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
       
-      await expect(ttb.connect(addr1).requestUnstake(stakeAmount))
-          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
+      // Request unstake and wait for delay
+      await ttb.connect(addr1).requestUnstake(stakeAmount);
+      await time.increase(4 * 24 * 3600); // 4 days
       
+      // Test unstake reentrancy
       await expect(ttb.connect(addr1).unstake())
           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
       
+      // Test cancel unstake reentrancy
       await expect(ttb.connect(addr1).cancelUnstake())
           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
       
+      // Test claim rewards reentrancy
       await expect(ttb.connect(addr1).claimRewards())
           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
     });
