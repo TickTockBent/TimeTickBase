@@ -11,7 +11,6 @@ contract ReentrancyMock {
         ttb = TimeTickBase(_ttb);
     }
     
-    // Allow contract to receive tokens
     receive() external payable {}
     
     // Attack types:
@@ -23,25 +22,30 @@ contract ReentrancyMock {
     function setAttackType(uint8 _type) external {
         attackType = _type;
     }
-    
-    // This is called by ERC20 hooks during token operations
+
+    // This is called during token transfers
+    function onTokenTransfer() external {
+        if (!attacking) return;
+        
+        // Try to reenter during the transfer
+        if (attackType == 1) ttb.stake(3600 ether);
+        if (attackType == 2) ttb.renewStake();
+        if (attackType == 3) ttb.unstake();
+        if (attackType == 4) ttb.cancelUnstake();
+        if (attackType == 5) ttb.claimRewards();
+    }
+
+    // We need this to receive ERC20 transfers
     function onERC20Received(address, uint256) external returns (bool) {
-        if (attacking) {
-            if (attackType == 1) ttb.stake(3600 ether);
-            if (attackType == 2) ttb.renewStake();
-            if (attackType == 3) ttb.unstake();
-            if (attackType == 4) ttb.cancelUnstake();
-            if (attackType == 5) ttb.claimRewards();
-        }
+        onTokenTransfer();
         return true;
     }
 
-    // Helper function to approve TTB spending
     function approveTokens(uint256 amount) external {
         ttb.approve(address(ttb), amount);
     }
     
-    // Additional functions for attack setup
+    // Setup functions
     function stake(uint256 amount) external {
         ttb.approve(address(ttb), amount);
         ttb.stake(amount);
@@ -51,7 +55,7 @@ contract ReentrancyMock {
         ttb.requestUnstake(amount);
     }
 
-    // Attack functions
+    // Attack functions that set attacking = true first
     function attackStake() external {
         attacking = true;
         ttb.approve(address(ttb), 3600 ether);
@@ -81,5 +85,10 @@ contract ReentrancyMock {
         attacking = true;
         ttb.claimRewards();
         attacking = false;
+    }
+
+    // Helper to check contract's token balance
+    function getBalance() external view returns (uint256) {
+        return ttb.balanceOf(address(this));
     }
 }
