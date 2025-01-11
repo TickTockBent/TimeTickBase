@@ -563,65 +563,32 @@ describe("TimeTickBase", function () {
     });
 
     it("Should test reentrancy protection on all functions", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      // Setup initial balance and stake
-      const stakeAmount = ethers.parseEther("3600");
-      const totalAmount = stakeAmount * 2n;
-      await ttb.connect(devFund).transfer(addr1.getAddress(), totalAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      // Test renew reentrancy
-      await expect(ttb.connect(addr1).renewStake())
-          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-      
-      // Request unstake and wait for delay
-      await ttb.connect(addr1).requestUnstake(stakeAmount);
-      await time.increase(4 * 24 * 3600); // 4 days
-      
-      // Test unstake reentrancy
-      await expect(ttb.connect(addr1).unstake())
-          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-      
-      // Test cancel unstake reentrancy
-      await expect(ttb.connect(addr1).cancelUnstake())
-          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-      
-      // Test claim rewards reentrancy
-      await expect(ttb.connect(addr1).claimRewards())
-          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-    });
-
-    it("Should test reentrancy protection on staking function", async function () {
-      const ReentrancyMock = await ethers.getContractFactory("ReentrancyMock");
-      const mock = await ReentrancyMock.deploy(ttb.address);
-      
-      // Setup initial balance for mock
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(mock.address, stakeAmount * 2n);
-      
-      // Should revert with reentrancy error
-      await expect(mock.attackStake(stakeAmount))
-          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-    });
-
-    it("Should test reentrancy protection", async function () {
       // Deploy mock
       const ReentrancyMock = await ethers.getContractFactory("ReentrancyMock");
       const mock = await ReentrancyMock.deploy(await ttb.getAddress());
       await mock.waitForDeployment();
       
-      // Fund mock
+      // Setup
       const stakeAmount = ethers.parseEther("3600");
       await ttb.connect(devFund).transfer(await mock.getAddress(), stakeAmount * 2n);
       
-      // Approve tokens
-      await ttb.connect(mock).approve(await ttb.getAddress(), stakeAmount * 2n);
-      
-      // Test attack
-      await expect(mock.attackStake())
-          .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
+      // Test each function
+      for(let i = 1; i <= 5; i++) {
+          await mock.setAttackType(i);
+          await expect(mock.connect(addr1)[getAttackFunction(i)]())
+              .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
+      }
     });
+
+  function getAttackFunction(type: number): string {
+      switch(type) {
+          case 1: return "attackStake";
+          case 2: return "attackRenew";
+          case 3: return "attackUnstake";
+          case 4: return "attackCancel";
+          case 5: return "attackClaim";
+          default: return "";
+      }
+  }    
   });
 });
