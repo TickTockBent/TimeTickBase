@@ -388,6 +388,114 @@ describe("TimeTickBase", function () {
       
       const correctionFactor = decoded.args[0];
       expect(correctionFactor).to.be.lte(ethers.parseEther("3600")); // Max correction
-  });
+    });
+
+    it("Should handle multiple stakers with different stake amounts", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const baseStakeAmount = ethers.parseEther("3600");
+      const doubleStakeAmount = baseStakeAmount * 2n;
+      
+      // Transfer tokens
+      await ttb.connect(devFund).transfer(addr1.getAddress(), doubleStakeAmount);
+      await ttb.connect(devFund).transfer(addr2.getAddress(), baseStakeAmount);
+      
+      // Addr1 stakes double amount
+      await ttb.connect(addr1).stake(doubleStakeAmount);
+      
+      // Addr2 stakes after 1 hour
+      await time.increase(3600);
+      await ttb.connect(addr2).stake(baseStakeAmount);
+      
+      // Wait another hour and process
+      await time.increase(3600);
+      await ttb.processRewards();
+      
+      const staker1Info = await ttb.getStakerInfo(addr1.getAddress());
+      const staker2Info = await ttb.getStakerInfo(addr2.getAddress());
+      
+      // Verify rewards ratio ~2:1 (allowing for time difference)
+      const ratio = Number(staker1Info.unclaimedRewards) / Number(staker2Info.unclaimedRewards);
+      expect(ratio).to.be.approximately(2, 0.1);
+      expect(staker1Info.unclaimedRewards).to.be.gt(staker2Info.unclaimedRewards);
+    });
+
+    it("Should handle stake renewal correctly", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await ttb.connect(addr1).stake(stakeAmount);
+      
+      await time.increase(179 * 24 * 3600); // Just before renewal period
+      await ttb.connect(addr1).renewStake();
+      
+      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+      expect(stakerInfo.lastRenewalTime).to.be.approximately(BigInt(await time.latest()), 10n);
+    });
+
+    it("Should handle unstake cancellation correctly", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await ttb.connect(addr1).stake(stakeAmount);
+      
+      await ttb.connect(addr1).requestUnstake(stakeAmount);
+      await ttb.connect(addr1).cancelUnstake();
+      
+      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+      expect(stakerInfo.unstakeTime).to.equal(0n);
+      expect(stakerInfo.stakedAmount).to.equal(stakeAmount);
+    });
+
+    it("Should handle reward claiming correctly", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await ttb.connect(addr1).stake(stakeAmount);
+      
+      // Generate some rewards
+      await time.increase(3600);
+      await ttb.processRewards();
+      
+      const beforeBalance = await ttb.balanceOf(addr1.getAddress());
+      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+      const rewards = stakerInfo.unclaimedRewards;
+      
+      await ttb.connect(addr1).claimRewards();
+      
+      const afterBalance = await ttb.balanceOf(addr1.getAddress());
+      expect(afterBalance - beforeBalance).to.equal(rewards);
+      
+      // Check rewards cleared
+      const finalInfo = await ttb.getStakerInfo(addr1.getAddress());
+      expect(finalInfo.unclaimedRewards).to.equal(0n);
+    });
+
+    it("Should handle multiple reward cycles correctly", async function () {
+      await time.increase(14400);
+      await ttb.processRewards();
+      
+      const stakeAmount = ethers.parseEther("3600");
+      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await ttb.connect(addr1).stake(stakeAmount);
+      
+      // Process rewards multiple times
+      for(let i = 0; i < 5; i++) {
+          await time.increase(3600); // 1 hour each
+          await ttb.processRewards();
+      }
+      
+      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+      // Should have 5 hours worth of rewards (70% of 5 * 3600)
+      const expectedRewards = ethers.parseEther("12600"); // 5 * 3600 * 0.7
+      expect(stakerInfo.unclaimedRewards).to.be.approximately(expectedRewards, ethers.parseEther("10"));
+    });
   });
 });
