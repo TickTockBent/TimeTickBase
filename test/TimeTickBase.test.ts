@@ -187,5 +187,54 @@ describe("TimeTickBase", function () {
       const finalBalance = await ttb.balanceOf(addr1.getAddress());
       expect(finalBalance).to.be.gte(initialBalance + stakeAmount); // Should have at least initial + stake back
     });
-  });  
+  });
+  describe("Advanced Functions", function () {
+    it("Should prevent staking non-unit amounts", async function () {
+        await time.increase(14400);
+        await ttb.processRewards();
+        
+        const nonUnitAmount = ethers.parseEther("3601"); // Not a multiple of STAKE_UNIT
+        await ttb.connect(devFund).transfer(addr1.getAddress(), nonUnitAmount);
+        
+        await expect(ttb.connect(addr1).stake(nonUnitAmount))
+            .to.be.revertedWith("Must stake whole units");
+    });
+
+    it("Should handle multiple stakers with correct reward distribution", async function () {
+        await time.increase(14400);
+        await ttb.processRewards();
+        
+        const stakeAmount = ethers.parseEther("3600");
+        // Setup two stakers with different amounts
+        await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount * 2n);
+        await ttb.connect(devFund).transfer(addr2.getAddress(), stakeAmount);
+        
+        await ttb.connect(addr1).stake(stakeAmount * 2n);
+        await ttb.connect(addr2).stake(stakeAmount);
+        
+        await time.increase(3600);
+        await ttb.processRewards();
+        
+        const addr1Info = await ttb.getStakerInfo(addr1.getAddress());
+        const addr2Info = await ttb.getStakerInfo(addr2.getAddress());
+        
+        // addr1 should have 2/3 of rewards, addr2 1/3
+        expect(addr1Info.unclaimedRewards).to.be.approximately(addr2Info.unclaimedRewards * 2n, ethers.parseEther("1"));
+    });
+
+    it("Should handle stake renewal correctly", async function () {
+        await time.increase(14400);
+        await ttb.processRewards();
+        
+        const stakeAmount = ethers.parseEther("3600");
+        await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+        await ttb.connect(addr1).stake(stakeAmount);
+        
+        await time.increase(179 * 24 * 3600); // Just before renewal period
+        await ttb.connect(addr1).renewStake();
+        
+        const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
+        expect(stakerInfo.lastRenewalTime).to.be.approximately(BigInt(await time.latest()), 10n);
+    });
+  });
 });
