@@ -111,6 +111,13 @@ describe("TimeTickBase", function () {
       // Add timing details
       const before = await time.latest();
       const correction = await ttb.validateTotalTime();
+      console.log("\nValidation details:");
+      console.log("Execution time:", after - before, "seconds");
+      console.log("Raw correction:", correction);
+      console.log("Correction type:", typeof correction);
+      if (typeof correction === 'object') {
+          console.log("Correction properties:", Object.keys(correction));
+      }
       const after = await time.latest();
       
       console.log("\nValidation details:");
