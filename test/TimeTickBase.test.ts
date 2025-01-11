@@ -362,10 +362,15 @@ describe("TimeTickBase", function () {
       await time.increase(30 * 24 * 3600); // 30 days
       
       // Validate should handle this correctly
-      const correction = await ttb.validateTotalTime();
+      const tx = await ttb.validateTotalTime();
+      const receipt = await tx.wait();
       
-      // Check that correction is within bounds
-      expect(correction).to.be.lte(ethers.parseEther("3600")); // Max correction
+      // Find the TimeValidation event
+      const event = receipt.events?.find(e => e.event === 'TimeValidation');
+      expect(event).to.not.be.undefined;
+      
+      const correctionFactor = event?.args?.correctionFactor;
+      expect(correctionFactor).to.be.lte(ethers.parseEther("3600")); // Max correction
     });
   });
 });
