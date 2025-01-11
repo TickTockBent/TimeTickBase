@@ -108,21 +108,22 @@ describe("TimeTickBase", function () {
       
       await time.increase(3600);
       
-      // Add timing details
+      // Fix timing variables
       const before = await time.latest();
       const correction = await ttb.validateTotalTime();
+      const after = await time.latest();
+      
       console.log("\nValidation details:");
       console.log("Execution time:", after - before, "seconds");
       console.log("Raw correction:", correction);
       console.log("Correction type:", typeof correction);
       if (typeof correction === 'object') {
           console.log("Correction properties:", Object.keys(correction));
+          // If it's a BigNumber-like object, it might have a toString method
+          if ('toString' in correction) {
+              console.log("Correction toString:", correction.toString());
+          }
       }
-      const after = await time.latest();
-      
-      console.log("\nValidation details:");
-      console.log("Execution time:", after - before, "seconds");
-      console.log("Correction factor:", correction.toString());
       
       const stakerInfo = await ttb.getStakerInfo(addr1.address);
       const expectedBase = ethers.parseEther("2520");
