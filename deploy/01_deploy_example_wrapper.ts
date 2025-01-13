@@ -15,7 +15,7 @@ const deployWrapper: DeployFunction = async function (hre: HardhatRuntimeEnviron
   const WRAP_RATIO = 1000; // 1 TTB = 1000 wTTB
   const ALLOW_UNWRAP = true;
 
-  await deploy('TTBWrapper1000', {
+  await deploy('TTBWrapper', {
     from: deployer,
     args: [TTB.address, NAME, SYMBOL, WRAP_RATIO, ALLOW_UNWRAP],
     log: true,
@@ -23,7 +23,7 @@ const deployWrapper: DeployFunction = async function (hre: HardhatRuntimeEnviron
   });
 };
 
-deployWrapper.tags = ['TTBWrapper1000'];
+deployWrapper.tags = ['TTBWrapper'];
 deployWrapper.dependencies = ['TimeTickBase'];
 
 export default deployWrapper;
