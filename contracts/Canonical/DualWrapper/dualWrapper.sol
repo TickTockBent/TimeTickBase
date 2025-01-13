@@ -6,7 +6,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-// Custom ERC20 with mint/burn capabilities
+interface IWrappedToken is IERC20 {
+    function mint(address to, uint256 amount) external;
+    function burn(uint256 amount) external;
+}
+
 contract WrappedToken is ERC20, Ownable {
     constructor(
         string memory name, 
@@ -25,8 +29,8 @@ contract WrappedToken is ERC20, Ownable {
 
 contract TTBDualWrapper is Ownable, ReentrancyGuard {
     IERC20 public immutable TTB;
-    WrappedToken public immutable TOKEN_A;
-    WrappedToken public immutable TOKEN_B;
+    IWrappedToken public immutable TOKEN_A;
+    IWrappedToken public immutable TOKEN_B;
     
     uint256 public immutable RATIO_A;  // How many Token A per 1 TTB
     uint256 public immutable RATIO_B;  // How many Token B per 1 TTB
@@ -49,8 +53,14 @@ contract TTBDualWrapper is Ownable, ReentrancyGuard {
     ) Ownable(msg.sender) {
         require(ratioA > 0 && ratioB > 0, "Invalid ratios");
         TTB = IERC20(ttbAddress);
-        TOKEN_A = new WrappedToken(nameA, symbolA, address(this));
-        TOKEN_B = new WrappedToken(nameB, symbolB, address(this));
+        
+        // Deploy token contracts
+        WrappedToken tokenA = new WrappedToken(nameA, symbolA, address(this));
+        WrappedToken tokenB = new WrappedToken(nameB, symbolB, address(this));
+        
+        TOKEN_A = IWrappedToken(address(tokenA));
+        TOKEN_B = IWrappedToken(address(tokenB));
+        
         RATIO_A = ratioA;
         RATIO_B = ratioB;
     }
