@@ -6,16 +6,27 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-/**
- * @title TTBDualWrapper
- * @dev Canonical pattern for wrapping TTB into two different tokens with different properties.
- * Token A: Direct wrapper with configurable ratio
- * Token B: Controlled wrapper with separate ratio and restricted minting
- */
+// Custom ERC20 with mint/burn capabilities
+contract WrappedToken is ERC20, Ownable {
+    constructor(
+        string memory name, 
+        string memory symbol,
+        address initialOwner
+    ) ERC20(name, symbol) Ownable(initialOwner) {}
+
+    function mint(address to, uint256 amount) external onlyOwner {
+        _mint(to, amount);
+    }
+
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+}
+
 contract TTBDualWrapper is Ownable, ReentrancyGuard {
     IERC20 public immutable TTB;
-    ERC20 public immutable TOKEN_A;
-    ERC20 public immutable TOKEN_B;
+    WrappedToken public immutable TOKEN_A;
+    WrappedToken public immutable TOKEN_B;
     
     uint256 public immutable RATIO_A;  // How many Token A per 1 TTB
     uint256 public immutable RATIO_B;  // How many Token B per 1 TTB
@@ -35,11 +46,11 @@ contract TTBDualWrapper is Ownable, ReentrancyGuard {
         string memory symbolB,
         uint256 ratioA,
         uint256 ratioB
-    ) {
+    ) Ownable(msg.sender) {
         require(ratioA > 0 && ratioB > 0, "Invalid ratios");
         TTB = IERC20(ttbAddress);
-        TOKEN_A = new WrappedToken(nameA, symbolA);
-        TOKEN_B = new WrappedToken(nameB, symbolB);
+        TOKEN_A = new WrappedToken(nameA, symbolA, address(this));
+        TOKEN_B = new WrappedToken(nameB, symbolB, address(this));
         RATIO_A = ratioA;
         RATIO_B = ratioB;
     }
@@ -58,20 +69,18 @@ contract TTBDualWrapper is Ownable, ReentrancyGuard {
         uint256 tokenAmount = ttbAmount * RATIO_A;
         
         require(TTB.transferFrom(msg.sender, address(this), ttbAmount), "TTB transfer failed");
-        require(TOKEN_A.mint(msg.sender, tokenAmount), "Mint failed");
+        TOKEN_A.mint(msg.sender, tokenAmount);
         
         emit TokenAWrapped(msg.sender, ttbAmount, tokenAmount);
     }
 
     function unwrapTokenA(uint256 tokenAmount) external nonReentrant {
         require(tokenAmount > 0, "Amount must be > 0");
-        require(tokenAmount % RATIO_A == 0, "Must unwrap in whole units");
         
         uint256 ttbAmount = tokenAmount / RATIO_A;
+        require(ttbAmount > 0, "TTB amount too small");
         
-        require(TOKEN_A.transferFrom(msg.sender, address(this), tokenAmount), "Token transfer failed");
         TOKEN_A.burn(tokenAmount);
-        
         require(TTB.transfer(msg.sender, ttbAmount), "TTB transfer failed");
         
         emit TokenAUnwrapped(msg.sender, tokenAmount, ttbAmount);
@@ -85,45 +94,20 @@ contract TTBDualWrapper is Ownable, ReentrancyGuard {
         uint256 ttbNeeded = (amount + RATIO_B - 1) / RATIO_B;
         
         require(TTB.transferFrom(msg.sender, address(this), ttbNeeded), "TTB transfer failed");
-        require(TOKEN_B.mint(to, amount), "Mint failed");
+        TOKEN_B.mint(to, amount);
         
         emit TokenBMinted(to, amount);
     }
 
     function unwrapTokenB(uint256 tokenAmount) external nonReentrant {
-        require(tokenAmount >= RATIO_B, "Must unwrap minimum amount");
-        require(tokenAmount % RATIO_B == 0, "Must unwrap in whole units");
+        require(tokenAmount > 0, "Amount must be > 0");
         
         uint256 ttbAmount = tokenAmount / RATIO_B;
+        require(ttbAmount > 0, "TTB amount too small");
         
-        require(TOKEN_B.transferFrom(msg.sender, address(this), tokenAmount), "Token transfer failed");
         TOKEN_B.burn(tokenAmount);
-        
         require(TTB.transfer(msg.sender, ttbAmount), "TTB transfer failed");
         
         emit TokenBUnwrapped(msg.sender, tokenAmount, ttbAmount);
-    }
-}
-
-/**
- * @title WrappedToken
- * @dev Simple ERC20 that can only be minted/burned by the wrapper
- */
-contract WrappedToken is ERC20 {
-    address public immutable wrapper;
-
-    constructor(string memory name, string memory symbol) ERC20(name, symbol) {
-        wrapper = msg.sender;
-    }
-
-    function mint(address to, uint256 amount) external returns (bool) {
-        require(msg.sender == wrapper, "Only wrapper can mint");
-        _mint(to, amount);
-        return true;
-    }
-
-    function burn(uint256 amount) external {
-        require(msg.sender == wrapper, "Only wrapper can burn");
-        _burn(msg.sender, amount);
     }
 }
