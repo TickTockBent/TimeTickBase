@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 interface ITTB is IERC20 {}
 
-contract TTBWrapper1000 is ERC20, ReentrancyGuard {
+contract TTBWrapper is ERC20, ReentrancyGuard {
     ITTB public immutable TTB;
     uint256 public immutable wrapRatio; // How many wrapped tokens per 1 TTB
     bool public immutable allowUnwrap;
