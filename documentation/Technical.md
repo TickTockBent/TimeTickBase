@@ -246,9 +246,6 @@ Shard_Supply = TTB_Locked × S
 
 Each mathematical relationship preserves the core time-token linkage while enabling flexible implementations, but market forces ultimately determine trading values independently of these mechanical relationships.
 
-Each mathematical relationship preserves the core time-token linkage while enabling flexible implementations.
-
-# TTB Whitepaper
 ## 4. Implementation and Usage Patterns
 
 The true power of TTB lies in its ability to serve as foundational infrastructure for token development. Through our system of Canonical Contracts, teams can rapidly deploy secure token systems with varying levels of customization while maintaining clear security guarantees.
@@ -348,7 +345,6 @@ Teams building on TTB should:
    - Maintain clear versioning
    - Follow security advisories
 
-# TTB Whitepaper
 ## 5. Security Architecture
 
 TTB's security model builds outward from its immutable core, establishing layers of protection that extend from the foundational time-token relationship through to derived implementations.
@@ -500,7 +496,6 @@ The TTB ecosystem maintains security through:
 
 This comprehensive security architecture ensures that TTB maintains its trustless foundation while enabling secure ecosystem growth through verified implementations and clear security inheritance.
 
-# TTB Whitepaper
 ## 6. Governance Architecture
 
 TTB implements a balanced governance system that combines strong leadership with democratic participation, using economic incentives to maintain equilibrium.
@@ -641,7 +636,6 @@ The system maintains equilibrium through:
    - Documented execution
    - Stake verification
 
-   # TTB Whitepaper
 ## 7. Development Roadmap
 
 The TTB ecosystem will be developed in phases, emphasizing security and stability at each stage.
@@ -720,7 +714,6 @@ The TTB ecosystem will be developed in phases, emphasizing security and stabilit
 
 Each phase will undergo security audits before deployment. The roadmap remains flexible to incorporate improvements and community feedback.
 
-# TTB Whitepaper
 ## 8. Vision and Future
 
 TimeTickBase represents more than just another token system - it establishes a new paradigm for blockchain infrastructure development. By harnessing time itself as our immutable foundation, we create possibilities that extend far beyond our initial implementation.
