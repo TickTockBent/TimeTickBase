@@ -134,14 +134,17 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
         require(_newMinimum >= STAKE_UNIT, "Below stake unit");
         require(_newMinimum % STAKE_UNIT == 0, "Must be whole units");
         minimumStake = _newMinimum;
+        emit MinimumStakeUpdated(newMinimum);
     }
     
     function toggleStaking() external onlyOwner {
         stakingEnabled = !stakingEnabled;
+        emit StakingToggled(stakingEnabled);
     }
     
     function toggleRewards() external onlyOwner {
         rewardsEnabled = !rewardsEnabled;
+        emit RewardsToggled(rewardsEnabled);
     }
 
     function pause() external onlyOwner {
