@@ -1,47 +1,49 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import { DeployFunction } from 'hardhat-deploy/types';
 
-const deployDualWrapper: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+const deployChickenFarm: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts } = hre;
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
 
-  // Get the TTB contract address from previous deployment
+  // Get TTB address
   const TTB = await deployments.get('TimeTickBase');
 
-  // Example dual wrapper parameters
-  const TOKEN_A_NAME = "First Token";
-  const TOKEN_A_SYMBOL = "FIRST";
-  const TOKEN_B_NAME = "Second Token";
-  const TOKEN_B_SYMBOL = "SECOND";
-  const RATIO_A = 1;      // 1:1 with TTB
-  const RATIO_B = 1000;   // 1000:1 with TTB
-
-  const wrapper = await deploy('TTBDualWrapper', {
+  // 1. Deploy the dual wrapper
+  const wrapper = await deploy('TTBDualWrapper_V2', {
     from: deployer,
     args: [
       TTB.address,
-      TOKEN_A_NAME,
-      TOKEN_A_SYMBOL,
-      TOKEN_B_NAME,
-      TOKEN_B_SYMBOL,
-      RATIO_A,
-      RATIO_B
+      "🐔 Chicken Token",
+      "CHKN",
+      "🥚 Fresh Egg",
+      "EGG",
+      1,    // 1:1 for CHKN
+      1000  // 1:1000 for EGG
     ],
     log: true,
     waitConfirmations: 1,
   });
 
-  // Optional: Set authorized minter if specified in env
-  if (process.env.AUTHORIZED_MINTER) {
-    const DualWrapper = await hre.ethers.getContractFactory('TTBDualWrapper');
-    const dualWrapper = DualWrapper.attach(wrapper.address);
-    await dualWrapper.setAuthorizedMinter(process.env.AUTHORIZED_MINTER);
-    console.log(`Set authorized minter to ${process.env.AUTHORIZED_MINTER}`);
-  }
+  // 2. Get CHKN token address from wrapper
+  const DualWrapper = await hre.ethers.getContractFactory('TTBDualWrapper_V2');
+  const wrapperContract = DualWrapper.attach(wrapper.address);
+  const chknAddress = await wrapperContract.TOKEN_A();
+
+  // 3. Deploy the farm
+  const farm = await deploy('ChickenFarm_V2', {
+    from: deployer,
+    args: [wrapper.address, chknAddress],
+    log: true,
+    waitConfirmations: 1,
+  });
+
+  // 4. Set farm as authorized minter
+  await wrapperContract.setAuthorizedMinter(farm.address);
+  console.log(`Set ChickenFarm (${farm.address}) as authorized minter for eggs`);
 };
 
-deployDualWrapper.tags = ['TTBDualWrapper'];
-deployDualWrapper.dependencies = ['TimeTickBase'];
+deployChickenFarm.tags = ['ChickenFarm_V2'];
+deployChickenFarm.dependencies = ['TimeTickBase'];
 
-export default deployDualWrapper;
+export default deployChickenFarm;

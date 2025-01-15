@@ -11,7 +11,7 @@ interface IWrappedToken is IERC20 {
     function burn(uint256 amount) external;
 }
 
-contract WrappedToken is ERC20, Ownable {
+contract WrappedToken_V2 is ERC20, Ownable {
     constructor(
         string memory name, 
         string memory symbol,
@@ -27,7 +27,7 @@ contract WrappedToken is ERC20, Ownable {
     }
 }
 
-contract TTBDualWrapper is Ownable, ReentrancyGuard {
+contract TTBDualWrapper_V2 is Ownable, ReentrancyGuard {
     IERC20 public immutable TTB;
     IWrappedToken public immutable TOKEN_A;
     IWrappedToken public immutable TOKEN_B;

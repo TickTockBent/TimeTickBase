@@ -9,7 +9,7 @@ interface ITTBDualWrapper {
     function mintTokenB(address to, uint256 amount) external;
 }
 
-contract ChickenFarm is Ownable, ReentrancyGuard {
+contract ChickenFarm_V2 is Ownable, ReentrancyGuard {
     // Token interfaces
     IERC20 public CHKN;
     ITTBDualWrapper public wrapper;
