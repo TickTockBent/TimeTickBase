@@ -170,7 +170,7 @@ describe("TimeTickBase", function () {
       await addr1Contract.stake(stakeAmount);
       
       // Request unstake
-      await addr1Contract.requestUnstake(stakeAmount);
+      await addr1Contract.requestUnstake();
       
       // Verify unstake request
       let stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
@@ -271,7 +271,7 @@ describe("TimeTickBase", function () {
       await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
       await ttb.connect(addr1).stake(stakeAmount);
       
-      await ttb.connect(addr1).requestUnstake(stakeAmount);
+      await ttb.connect(addr1).requestUnstake();
       await ttb.connect(addr1).cancelUnstake();
       
       const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
@@ -444,7 +444,7 @@ describe("TimeTickBase", function () {
       await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
       await ttb.connect(addr1).stake(stakeAmount);
       
-      await ttb.connect(addr1).requestUnstake(stakeAmount);
+      await ttb.connect(addr1).requestUnstake();
       await ttb.connect(addr1).cancelUnstake();
       
       const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
@@ -532,7 +532,7 @@ describe("TimeTickBase", function () {
       await ttb.connect(addr1).renewStake();
       
       // Cancel unstake
-      await ttb.connect(addr1).requestUnstake(stakeAmount);
+      await ttb.connect(addr1).requestUnstake();
       await ttb.connect(addr1).cancelUnstake();
       
       const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
@@ -593,7 +593,7 @@ describe("TimeTickBase", function () {
           expect(rewardsEvent).to.not.be.undefined;
           
           // Test UnstakeRequested event
-          await expect(ttb.connect(addr1).requestUnstake(stakeAmount))
+          await expect(ttb.connect(addr1).requestUnstake())
               .to.emit(ttb, "UnstakeRequested")
               .withArgs(addr1.getAddress(), stakeAmount);
               
@@ -608,7 +608,7 @@ describe("TimeTickBase", function () {
               .withArgs(addr1.getAddress());
               
           // Re-request unstake for final test
-          await ttb.connect(addr1).requestUnstake(stakeAmount);
+          await ttb.connect(addr1).requestUnstake();
           await time.increase(3 * 24 * 3600 + 10);
           
           // Test Unstaked event
@@ -616,66 +616,6 @@ describe("TimeTickBase", function () {
               .to.emit(ttb, "Unstaked")
               .withArgs(addr1.getAddress(), stakeAmount);
       });
-  });
-
-    // describe("Reentrancy Protection", function () {
-    //   let mockContract: any;
-  
-    //   beforeEach(async function () {
-    //       await time.increase(14400);
-    //       await ttb.processRewards();
-          
-    //       // Deploy the mock contract
-    //       const ReentrancyMock = await ethers.getContractFactory("ReentrancyMock");
-    //       mockContract = await ReentrancyMock.deploy(await ttb.getAddress());
-    //       await mockContract.waitForDeployment();
-          
-    //       // Fund the mock contract
-    //       const stakeAmount = ethers.parseEther("3600");
-    //       await ttb.connect(devFund).transfer(await mockContract.getAddress(), stakeAmount * 2n);
-    //   });
-  
-    //   it("Should prevent reentrant staking during unstake", async function () {
-    //       const stakeAmount = ethers.parseEther("3600");
-          
-    //       // Initial stake
-    //       await mockContract.stake(stakeAmount);
-    //       await mockContract.requestUnstake(stakeAmount);
-    //       await time.increase(3 * 24 * 3600 + 10); // Past unstake delay
-          
-    //       // Try to reenter with stake during unstake
-    //       await mockContract.setReentryPoint("stake");
-    //       await expect(mockContract.triggerReentrantUnstake())
-    //           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-    //   });
-  
-    //   it("Should prevent reentrant unstake during reward claim", async function () {
-    //       const stakeAmount = ethers.parseEther("3600");
-          
-    //       // Setup stake and generate rewards
-    //       await mockContract.stake(stakeAmount);
-    //       await time.increase(3600);
-    //       await ttb.processRewards();
-          
-    //       // Try to reenter with unstake during claim
-    //       await mockContract.setReentryPoint("unstake");
-    //       await expect(mockContract.triggerReentrantClaim())
-    //           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-    //   });
-  
-    //   it("Should prevent reentrant reward claims during stake", async function () {
-    //       const stakeAmount = ethers.parseEther("3600");
-          
-    //       // Setup initial stake and rewards
-    //       await mockContract.stake(stakeAmount);
-    //       await time.increase(3600);
-    //       await ttb.processRewards();
-          
-    //       // Try to reenter with claim during stake
-    //       await mockContract.setReentryPoint("claim");
-    //       await expect(mockContract.triggerReentrantStake(stakeAmount))
-    //           .to.be.revertedWithCustomError(ttb, "ReentrancyGuardReentrantCall");
-    //   });
-    // });
+    });
   });
 });
