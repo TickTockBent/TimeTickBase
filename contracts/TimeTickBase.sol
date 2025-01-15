@@ -56,13 +56,6 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     uint256 private constant DEV_SHARE = 30;   
     uint256 private constant STAKER_SHARE = 70;
 
-    // Admin functions
-    // These are used to enable or disable rewards and staking
-    // This is to prevent abuse or to pause the contract in case of issues
-    // I'm not planning to use these functions
-    // But it's good to have them just in case
-    // - TTB
-    
     bool public rewardsEnabled;
     bool public stakingEnabled;
 
@@ -125,7 +118,39 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
         genesisTime = block.timestamp;
         lastMintTime = block.timestamp;
         minimumStake = STAKE_UNIT;  // Start with 1 stake minimum
+
+        // These will be set to true at deployment
+        // But I'm setting them to false here for clarity
+        // I like to be explicit with these things
+        // It's a good habit, I think
+        // - TTB
+
+        rewardsEnabled = false;
+        stakingEnabled = false;
     }
+
+    // Admin functions
+    // These are used to enable or disable rewards and staking
+    // And set the minimum stake required
+    // This is to prevent abuse or to pause the contract in case of issues
+    // I'm not planning to use these functions
+    // But I'm adding them for safety
+    // - TTB
+
+    function setMinimumStake(uint256 _newMinimum) external onlyOwner {
+        require(_newMinimum >= STAKE_UNIT, "Below stake unit");
+        require(_newMinimum % STAKE_UNIT == 0, "Must be whole units");
+        minimumStake = _newMinimum;
+    }
+    
+    function toggleStaking() external onlyOwner {
+        stakingEnabled = !stakingEnabled;
+    }
+    
+    function toggleRewards() external onlyOwner {
+        rewardsEnabled = !rewardsEnabled;
+    }
+
     
     // Staking functions
     // Staking requires a minimum amount of TTB
