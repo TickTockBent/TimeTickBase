@@ -112,6 +112,9 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     event TimeValidation(int256 correctionFactor);
     event RewardsProcessed(uint256 totalRewards, uint256 devShare, uint256 stakerShare, int256 correctionFactor, bool validated);
     event UnstakeCancelled(address indexed staker, uint256 amount);
+    event MinimumStakeUpdated(uint256 newMinimum);
+    event StakingToggled(bool enabled);
+    event RewardsToggled(bool enabled);
 
     constructor(address _devFundAddress) ERC20("TimeTickBase", "TTB") {
         require(_devFundAddress != address(0), "Invalid dev fund address");
