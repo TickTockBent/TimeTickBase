@@ -466,15 +466,6 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
         uint256 elapsedTime = block.timestamp - lastMintTime;
         uint256 normalMint = elapsedTime * 1 ether;
 
-        // Log values for debugging
-        emit RewardsProcessed(
-            normalMint,  // tokensToMint
-            totalSupply(),  // dev share (reusing param)
-            elapsedTime,  // staker share (reusing param)
-            0,  // correction
-            true  // validated
-        );
-        
         // Calculate what total supply should be after this mint
         uint256 expectedSupply = totalSupply() + normalMint;
         
