@@ -60,17 +60,6 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     bool public rewardsEnabled;
     bool public stakingEnabled;
 
-    // Add validation for PRECISION
-    // This is to ensure the precision is valid
-    // I like to be safe with these things, as I said
-    // It's probably overkill again
-    // But I like it, so I'm keeping it
-    // - TTB
-
-    function _validatePrecision() internal pure {
-        require(PRECISION > 0, "Invalid precision");
-    }
-    
     // Staker struct
     // Stakers are tracked by address
     // Stakers have a staked amount
