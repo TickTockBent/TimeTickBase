@@ -209,7 +209,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     }
     
     // Request unstake
-    // Unstake is subject to delay
+    // Unstake is subject to delay (3 days)
     // IDK why you'd want to unstake but it's here if you need it
     // Maybe you need the tokens for something else
     // Or maybe you're just tired of staking
@@ -217,23 +217,14 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     // Whatever the reason, it's your choice
     // - TTB
 
-    // Turns out using transfer instead of _transfer makes a difference
-    // By leaving off the _ I was trying to transfer tokens from the user's wallet on unstake
-    // Which is obviously not what I want
-    // I want to transfer tokens from the contract back to the user
-    // So I need to use _transfer instead of transfer
-    // I'm glad I caught that before deploying
-    // - TTB
-
-    function requestUnstake(uint256 amount) external nonReentrant {
+    function requestUnstake() external nonReentrant {
         Staker storage staker = stakers[msg.sender];
-        require(staker.stakedAmount >= amount, "Insufficient stake");
+        require(staker.stakedAmount > 0, "No stake found");
         require(staker.unstakeTime == 0, "Unstake already pending");
-        require(amount % STAKE_UNIT == 0, "Must unstake whole units");
         
         staker.unstakeTime = block.timestamp + UNSTAKE_DELAY;
         
-        emit UnstakeRequested(msg.sender, amount);
+        emit UnstakeRequested(msg.sender, staker.stakedAmount);
     }
     
     // Complete unstake after delay
@@ -566,11 +557,6 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
             1 ether,
             minimumStake
         );
-    }
-
-    // Helper function to get all stakers
-    function _getStakers() internal view returns (address[] memory) {
-        return stakerSet.values();
     }
 
     // Really though, go do something else
