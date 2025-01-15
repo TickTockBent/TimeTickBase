@@ -151,6 +151,13 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
         rewardsEnabled = !rewardsEnabled;
     }
 
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
     
     // Staking functions
     // Staking requires a minimum amount of TTB
