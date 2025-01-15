@@ -391,7 +391,8 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     // So don't do that, it's not nice
     // - TTB
 
-    function processRewards() external nonReentrant {
+    function processRewards() external nonReentrant whenNotPaused {
+        require(rewardsEnabled, "Rewards not enabled");
         _processRewardsAndValidation(0);
     }
     
