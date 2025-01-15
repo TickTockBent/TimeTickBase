@@ -56,6 +56,16 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     uint256 private constant DEV_SHARE = 30;   
     uint256 private constant STAKER_SHARE = 70;
 
+    // Admin functions
+    // These are used to enable or disable rewards and staking
+    // This is to prevent abuse or to pause the contract in case of issues
+    // I'm not planning to use these functions
+    // But it's good to have them just in case
+    // - TTB
+    
+    bool public rewardsEnabled;
+    bool public stakingEnabled;
+
     // Add validation for PRECISION
     // This is to ensure the precision is valid
     // I like to be safe with these things, as I said
