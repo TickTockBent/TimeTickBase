@@ -54,11 +54,6 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     // This is probably obvious but I'm explaining it anyway
     // - TTB
 
-    // Change uint8 to uint256 for consistency and gas optimization
-    // Also, I like to be explicit with types
-    // It's a good habit, I think
-    // - TTB
-
     uint256 private constant DEV_SHARE = 30;   
     uint256 private constant STAKER_SHARE = 70;
 
