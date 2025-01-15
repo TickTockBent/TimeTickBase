@@ -33,12 +33,18 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     // Precision is used for calculations (might be overkill)
     // I'll think about it later
     // - TTB
-
+    
+    // This will be set at deployment
     uint256 public immutable genesisTime;
+    // This is set each time rewards are processed
     uint256 public lastMintTime;
+    // This is the atomic stake unit, should never change - 3600 TTB = 1 hour
     uint256 public constant STAKE_UNIT = 3600 ether;  // 1 stake = 3600 TTB
+    // This is the time required to wait before unstaking - 3 days
     uint256 public constant UNSTAKE_DELAY = 3 days;
+    // This is the time required to renew a stake - 180 days
     uint256 public constant RENEWAL_PERIOD = 180 days;
+    // This is the precision used for calculations - 1e18
     uint256 private constant PRECISION = 1e18;
     
     // Distribution constants
@@ -170,8 +176,12 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     // So claim your rewards regularly to keep the rewards flowing
     // - TTB
 
-    function stake(uint256 amount) external nonReentrant {
+    function stake(uint256 amount) external nonReentrant whenNotPaused {
+        // Check if staking is enabled
+        require(stakingEnabled, "Staking not enabled");
+        // Check if staked amount is above minimum
         require(amount >= minimumStake, "Below minimum stake");
+        // Check if amount is whole units
         require(amount % STAKE_UNIT == 0, "Must stake whole units");
         
         // Check and process any expired stakes before adding new ones
