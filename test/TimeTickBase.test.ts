@@ -34,6 +34,9 @@ describe("TimeTickBase", function () {
     ttb = await TimeTickBaseFactory.deploy(await devFund.getAddress());
     await ttb.waitForDeployment();
 
+    await ttb.toggleRewards();
+    await ttb.toggleStaking();
+
     console.log("Contract deployed to:", await ttb.getAddress());
   });
 
