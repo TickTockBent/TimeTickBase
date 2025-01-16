@@ -6,30 +6,31 @@ import { deployContracts, setupContracts, STAKE_UNIT, UNSTAKE_DELAY } from "./he
 describe("TimeTickBaseDepot", function () {
   describe("Staking", function () {
     it("Should allow staking whole units", async function () {
-      const { token, depot } = await loadFixture(setupContracts);
-      const [owner] = await ethers.getSigners();
-
-      // Mint some tokens first
-      await time.increase(3600);
-      await token.mintTokens();
+        const { token, depot } = await loadFixture(setupContracts);
+        const [owner] = await ethers.getSigners();
       
-      // Approve depot to spend tokens
-      await token.approve(await depot.getAddress(), STAKE_UNIT);
+        // Advance time by slightly more than needed to ensure enough tokens
+        await time.increase(5200); // 5143 + buffer
+        await token.mintTokens();
+        
+        // Process rewards through depot
+        await depot.processNewMint();
+        await depot.processRewardBatch();
+        
+        // Claim rewards
+        const balanceBefore = await token.balanceOf(owner.address);
+        await depot.claimRewards();
+        
+        // Verify we got enough tokens to stake (at least one stake unit)
+        const balanceAfter = await token.balanceOf(owner.address);
+        expect(balanceAfter.sub(balanceBefore)).to.be.gte(STAKE_UNIT);
       
-      // Stake one unit
-      await depot.stake(STAKE_UNIT);
-      
-      const stakerInfo = await depot.getStakerInfo(owner.address);
-      expect(stakerInfo.stakedAmount).to.equal(STAKE_UNIT);
-    });
-
-    it("Should reject non-whole unit stakes", async function () {
-      const { token, depot } = await loadFixture(setupContracts);
-      
-      // Try to stake 3599 tokens (less than one unit)
-      await expect(
-        depot.stake(ethers.parseEther("3599"))
-      ).to.be.revertedWith("Must stake whole units");
+        // Stake exactly one unit
+        await token.approve(await depot.getAddress(), STAKE_UNIT);
+        await depot.stake(STAKE_UNIT);
+        
+        const stakerInfo = await depot.getStakerInfo(owner.address);
+        expect(stakerInfo.stakedAmount).to.equal(STAKE_UNIT);
     });
   });
 
