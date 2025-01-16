@@ -84,28 +84,31 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
         require(msg.sender == depot, "Only depot can call this function");
         require(mintingEnabled, "Minting not enabled");
 
-        // Calculate normal mint amount
-        uint256 normalMint = (block.timestamp - lastMintTime) * 1 ether;
-
         // Calculate expected total based on time since genesis
         uint256 totalElapsedTime = block.timestamp - genesisTime;
         uint256 expectedTotal = totalElapsedTime * 1 ether;
 
-        // Calculate correction needed
+        // Calculate actual future supply after normal mint
+        uint256 normalMint = (block.timestamp - lastMintTime) * 1 ether;
         uint256 futureSupply = totalSupply() + normalMint;
+        
+        // Calculate correction needed
         int256 correction = int256(expectedTotal) - int256(futureSupply);
 
-        // Limit corrections (using unchecked where safe)
-        if (correction > int256(3600 ether)) {
-            correction = int256(3600 ether);
+        // Mint adjusted amount
+        uint256 adjustedMint = normalMint;
+        if (correction > 0) {
+            adjustedMint += uint256(correction);
+        } else if (correction < 0) {
+            adjustedMint -= uint256(-correction);
         }
-        if (correction < 0) {
-            unchecked { // No underflow possible here as correction is negative and normalMint is positive
-                if (uint256(-correction) > normalMint) {
-                    correction = -int256(normalMint);
-                }
-            }
-        }
+
+        _mint(address(this), adjustedMint);
+        lastMintTime = block.timestamp;
+
+        emit TimeValidation(correction, block.timestamp);
+        return correction;
+    }
 
         // Mint tokens with correction to THIS contract
         uint256 adjustedMint = normalMint;
