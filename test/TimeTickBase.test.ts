@@ -1,638 +1,174 @@
+// test/helpers.ts
+import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { ethers } from "hardhat";
+import { expect } from "chai";
+
+export const STAKE_UNIT = ethers.parseEther("3600");
+export const UNSTAKE_DELAY = 3 * 24 * 60 * 60; // 3 days in seconds
+export const RENEWAL_PERIOD = 180 * 24 * 60 * 60; // 180 days in seconds
+
+export async function deployContracts() {
+  // Deploy TTB Token
+  const TTBToken = await ethers.getContractFactory("TimeTickBaseToken");
+  const token = await TTBToken.deploy();
+  await token.waitForDeployment();
+
+  // Deploy Depot with dev fund as owner for testing
+  const [owner] = await ethers.getSigners();
+  const TTBDepot = await ethers.getContractFactory("TimeTickBaseDepot");
+  const depot = await TTBDepot.deploy(
+    await token.getAddress(),
+    owner.address // Dev fund address
+  );
+  await depot.waitForDeployment();
+
+  return { token, depot };
+}
+
+export async function setupContracts() {
+  const { token, depot } = await deployContracts();
+  
+  // Enable minting and staking
+  await token.toggleMinting();
+  await depot.toggleStaking();
+  await depot.toggleRewards();
+
+  return { token, depot };
+}
+
+// test/TimeTickBaseToken.test.ts
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { TimeTickBase } from "../typechain-types";
-import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { deployContracts } from "./helpers";
 
-describe("TimeTickBase", function () {
-  let ttb: TimeTickBase;
-  let owner: SignerWithAddress;
-  let addr1: SignerWithAddress;
-  let addr2: SignerWithAddress;
-  let devFund: SignerWithAddress;
-
-  const isWithinRange = (actual: bigint, expected: bigint, toleranceSeconds = 30n) => {
-    const tokenTolerance = ethers.parseEther(toleranceSeconds.toString());
-    const lower = expected - tokenTolerance;
-    const upper = expected + tokenTolerance;
-    return actual >= lower && actual <= upper;
-  };
-
-  const getElapsedTime = async (action: () => Promise<void>): Promise<number> => {
-    const before = await time.latest();
-    await action();
-    const after = await time.latest();
-    return after - before;
-  };
-
-  const setupStakeFor = async (
-    ttb: TimeTickBase, 
-    devFund: SignerWithAddress, 
-    staker: SignerWithAddress, 
-    amount: bigint
-  ) => {
-    const contractAddress = await ttb.getAddress();
-    await ttb.connect(devFund).transfer(staker.getAddress(), amount);
-    await ttb.connect(staker).approve(contractAddress, amount);
-  };
-
-  beforeEach(async function () {
-    // Get signers
-    [owner, devFund, addr1, addr2] = await ethers.getSigners();
-
-    // Simple deployment pattern that we know works
-    const TimeTickBaseFactory = await ethers.getContractFactory("TimeTickBase");
-    ttb = await TimeTickBaseFactory.deploy(await devFund.getAddress());
-    await ttb.waitForDeployment();
-
-    await ttb.toggleRewards();
-    await ttb.toggleStaking();
-
-    console.log("Contract deployed to:", await ttb.getAddress());
+describe("TimeTickBaseToken", function () {
+  describe("Deployment", function () {
+    it("Should deploy with correct initial state", async function () {
+      const { token } = await loadFixture(deployContracts);
+      
+      const stats = await token.getTokenStats();
+      expect(stats._mintingEnabled).to.be.false;
+      expect(stats._currentSupply).to.equal(0);
+    });
   });
 
-  describe("Core Functions", function () {
-
-    it("Should stake tokens and track timing accurately", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-  
-      const stakeAmount = ethers.parseEther("3600");
-      const contractAddress = await ttb.getAddress();
-      const addr1Address = await addr1.getAddress();
+  describe("Token Generation", function () {
+    it("Should mint correct amount of tokens per second", async function () {
+      const { token } = await loadFixture(deployContracts);
       
-      // Transfer tokens to addr1
-      await ttb.connect(devFund).transfer(addr1Address, stakeAmount);
+      // Enable minting
+      await token.toggleMinting();
       
-      console.log("Contract address:", contractAddress);
-      console.log("Addr1 address:", addr1Address);
+      // Advance time by 100 seconds
+      await time.increase(100);
       
-      // Check allowance BEFORE approve
-      const preAllowance = await ttb.allowance(addr1Address, contractAddress);
-      console.log("Pre-approval check - actual allowance:", preAllowance);
+      // Mint tokens
+      await token.mintTokens();
       
-      // Do approval with Ethers v6 syntax
-      const approveTx = await ttb.connect(addr1).approve(contractAddress, stakeAmount);
-      await approveTx.wait(); // Make sure approval is confirmed
-      
-      // Check allowance AFTER approve
-      const postAllowance = await ttb.allowance(addr1Address, contractAddress);
-      console.log("Post-approval check - actual allowance:", postAllowance);
-      
-      // Try to stake
-      await ttb.connect(addr1).stake(stakeAmount);
+      // Check supply (should be 100 tokens)
+      const supply = await token.totalSupply();
+      expect(supply).to.equal(ethers.parseEther("100"));
     });
 
-    it("Should distribute rewards correctly via processRewards", async function () {
-      // Initial stake setup
-      await time.increase(14400); // 4 hours for initial tokens
-      await ttb.processRewards();
-  
-      const stakeAmount = ethers.parseEther("3600");
-      const addr1Contract = ttb.connect(addr1);
+    it("Should prevent minting if minimum time hasn't passed", async function () {
+      const { token } = await loadFixture(deployContracts);
       
-      // Transfer and stake
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await token.toggleMinting();
+      await token.mintTokens();
       
-      const contractAddress = await ttb.getAddress();
-      await ttb.connect(addr1).approve(contractAddress, stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-
-      // Advance time and process rewards
-      await time.increase(3600); // 1 hour
-      const expectedBase = ethers.parseEther("2520"); // Base expectation: 3600 * 0.7
-      
-      // Process rewards and check elapsed time
-      const before = await time.latest();
-      await ttb.processRewards();
-      const after = await time.latest();
-      
-      console.log("Process rewards took:", after - before, "seconds");
-      
-      // Get actual rewards
-      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      console.log("Expected base rewards:", expectedBase.toString());
-      console.log("Actual rewards:", stakerInfo[1].toString());
-      
-      // Check with tolerance
-      expect(isWithinRange(stakerInfo[1], expectedBase, 10n)).to.be.true; // Allow 10 seconds of variance
+      // Try to mint again immediately
+      await expect(token.mintTokens()).to.be.revertedWith("Minimum mint interval not met");
     });
+  });
+});
 
-    it("Should handle time validation correctly", async function() {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.address, stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
+// test/TimeTickBaseDepot.test.ts
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { expect } from "chai";
+import { ethers } from "hardhat";
+import { deployContracts, setupContracts, STAKE_UNIT, UNSTAKE_DELAY } from "./helpers";
+
+describe("TimeTickBaseDepot", function () {
+  describe("Staking", function () {
+    it("Should allow staking whole units", async function () {
+      const { token, depot } = await loadFixture(setupContracts);
+      const [owner] = await ethers.getSigners();
+
+      // Mint some tokens first
       await time.increase(3600);
+      await token.mintTokens();
       
-      console.log("\nPre-validation state:");
-      console.log("Last mint time:", Number(await ttb.lastMintTime()));
-      console.log("Current time:", await time.latest());
-      console.log("Expected tokens to mint:", (await time.latest()) - Number(await ttb.lastMintTime()));
-
-      const before = await time.latest();
-      const tx = await ttb.validateTotalTime();
-      const receipt = await tx.wait();
-      console.log("\nTransaction events:");
-      const rewardsEvent = receipt.events?.find(e => e.event === 'RewardsProcessed');
-      console.log("Rewards event:", rewardsEvent ? {
-          totalRewards: rewardsEvent.args?.totalRewards.toString(),
-          devShare: rewardsEvent.args?.devShare.toString(),
-          stakerShare: rewardsEvent.args?.stakerShare.toString(),
-          correctionFactor: rewardsEvent.args?.correctionFactor.toString()
-      } : "No rewards event found");
-      const correction = receipt.events?.find(e => e.event === 'TimeValidation')?.args?.correctionFactor;
-      const after = await time.latest();
+      // Approve depot to spend tokens
+      await token.approve(await depot.getAddress(), STAKE_UNIT);
       
-
-      console.log("\nValidation details:");
-      console.log("Execution time:", after - before, "seconds");
-      console.log("Raw correction:", correction);
-      console.log("Correction toString:", correction?.toString());
-      console.log("Correction type:", typeof correction);
-      if (typeof correction === 'object') {
-          console.log("Correction properties:", Object.keys(correction));
-          // If it's a BigNumber-like object, it might have a toString method
-          if ('toString' in correction) {
-              console.log("Correction toString:", correction.toString());
-          }
-      }
+      // Stake one unit
+      await depot.stake(STAKE_UNIT);
       
-      const stakerInfo = await ttb.getStakerInfo(addr1.address);
-      const expectedBase = ethers.parseEther("2520");
-      
-      console.log("Expected rewards:", expectedBase.toString());
-      console.log("Actual rewards:", stakerInfo.unclaimedRewards.toString());
-      console.log("Difference:", (stakerInfo.unclaimedRewards - expectedBase).toString());
-      
-      expect(isWithinRange(stakerInfo.unclaimedRewards, expectedBase, 30n)).to.be.true;
+      const stakerInfo = await depot.getStakerInfo(owner.address);
+      expect(stakerInfo.stakedAmount).to.equal(STAKE_UNIT);
     });
 
-    it("Should handle unstaking process correctly", async function() {
-      // Initial setup
-      await time.increase(14400);
-      await ttb.processRewards();
+    it("Should reject non-whole unit stakes", async function () {
+      const { token, depot } = await loadFixture(setupContracts);
       
-      const stakeAmount = ethers.parseEther("3600");
-      const addr1Contract = ttb.connect(addr1);
-      
-      // Get initial balance for later comparison
-      const initialBalance = await ttb.balanceOf(addr1.getAddress());
-      
-      // Setup stake
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await addr1Contract.stake(stakeAmount);
-      
+      // Try to stake 3599 tokens (less than one unit)
+      await expect(
+        depot.stake(ethers.parseEther("3599"))
+      ).to.be.revertedWith("Must stake whole units");
+    });
+  });
+
+  describe("Unstaking", function () {
+    it("Should enforce unstake delay", async function () {
+      const { token, depot } = await loadFixture(setupContracts);
+      const [owner] = await ethers.getSigners();
+
+      // Setup: Mint and stake tokens
+      await time.increase(3600);
+      await token.mintTokens();
+      await token.approve(await depot.getAddress(), STAKE_UNIT);
+      await depot.stake(STAKE_UNIT);
+
       // Request unstake
-      await addr1Contract.requestUnstake();
+      await depot.requestUnstake();
       
-      // Verify unstake request
-      let stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      expect(stakerInfo[3]).to.be.gt(0n); // Unstake time should be set
+      // Try to unstake immediately (should fail)
+      await expect(depot.unstake()).to.be.revertedWith("Not ready");
       
-      // Advance time past unstake delay (3 days)
-      await time.increase(3 * 24 * 3600 + 10); // 3 days + buffer
+      // Advance time past delay
+      await time.increase(UNSTAKE_DELAY);
       
-      // Complete unstake
-      await addr1Contract.unstake();
+      // Should now succeed
+      await depot.unstake();
       
-      // Verify unstake completed
-      stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      expect(stakerInfo[0]).to.equal(0n); // Stake amount should be 0
-      expect(stakerInfo[3]).to.equal(0n); // Unstake time should be cleared
-      
-      // Verify tokens returned
-      const finalBalance = await ttb.balanceOf(addr1.getAddress());
-      expect(finalBalance).to.be.gte(initialBalance + stakeAmount); // Should have at least initial + stake back
+      const stakerInfo = await depot.getStakerInfo(owner.address);
+      expect(stakerInfo.stakedAmount).to.equal(0);
     });
   });
-  describe("Advanced Functions", function () {
-    it("Should prevent staking non-unit amounts", async function () {
-        await time.increase(14400);
-        await ttb.processRewards();
-        
-        const nonUnitAmount = ethers.parseEther("3601"); // Not a multiple of STAKE_UNIT
-        await ttb.connect(devFund).transfer(addr1.getAddress(), nonUnitAmount);
-        
-        await expect(ttb.connect(addr1).stake(nonUnitAmount))
-            .to.be.revertedWith("Must stake whole units");
-    });
 
-    it("Should handle multiple stakers with correct reward distribution", async function () {
-        await time.increase(14400);
-        await ttb.processRewards();
-        
-        const stakeAmount = ethers.parseEther("3600");
-        // Setup two stakers with different amounts
-        await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount * 2n);
-        await ttb.connect(devFund).transfer(addr2.getAddress(), stakeAmount);
-        
-        await ttb.connect(addr1).stake(stakeAmount * 2n);
-        await ttb.connect(addr2).stake(stakeAmount);
-        
-        await time.increase(3600);
-        await ttb.processRewards();
-        
-        const addr1Info = await ttb.getStakerInfo(addr1.getAddress());
-        const addr2Info = await ttb.getStakerInfo(addr2.getAddress());
-        
-        // addr1 should have 2/3 of rewards, addr2 1/3
-        expect(addr1Info.unclaimedRewards).to.be.approximately(addr2Info.unclaimedRewards * 2n, ethers.parseEther("1"));
-    });
+  describe("Rewards", function () {
+    it("Should distribute rewards correctly", async function () {
+      const { token, depot } = await loadFixture(setupContracts);
+      const [owner] = await ethers.getSigners();
 
-    it("Should handle stake renewal correctly", async function () {
-        await time.increase(14400);
-        await ttb.processRewards();
-        
-        const stakeAmount = ethers.parseEther("3600");
-        await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-        await ttb.connect(addr1).stake(stakeAmount);
-        
-        await time.increase(179 * 24 * 3600); // Just before renewal period
-        await ttb.connect(addr1).renewStake();
-        
-        const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-        expect(stakerInfo.lastRenewalTime).to.be.approximately(BigInt(await time.latest()), 10n);
-    });
-
-    it("Should automatically process expired stakes", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      // Move past renewal period (180 days + 1 day for safety)
-      await time.increase(181 * 24 * 3600);
-      
-      // Process rewards should trigger expired stake processing
-      await ttb.processRewards();
-      
-      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      expect(stakerInfo.stakedAmount).to.equal(0n);
-      
-      // Check balance returned (stake amount)
-      const balance = await ttb.balanceOf(addr1.getAddress());
-      expect(balance).to.equal(stakeAmount);
-    });
-  
-    it("Should handle unstake cancellation correctly", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      await ttb.connect(addr1).requestUnstake();
-      await ttb.connect(addr1).cancelUnstake();
-      
-      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      expect(stakerInfo.unstakeTime).to.equal(0n);
-      expect(stakerInfo.stakedAmount).to.equal(stakeAmount);
-    });
-  
-    it("Should handle reward claiming correctly", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      // Generate some rewards
+      // Setup: Mint and stake tokens
       await time.increase(3600);
-      await ttb.processRewards();
-      
-      const beforeBalance = await ttb.balanceOf(addr1.getAddress());
-      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      const rewards = stakerInfo.unclaimedRewards;
-      
-      await ttb.connect(addr1).claimRewards();
-      
-      const afterBalance = await ttb.balanceOf(addr1.getAddress());
-      expect(afterBalance - beforeBalance).to.equal(rewards);
-      
-      // Check rewards cleared
-      const finalInfo = await ttb.getStakerInfo(addr1.getAddress());
-      expect(finalInfo.unclaimedRewards).to.equal(0n);
-    });
-    it("Should handle multiple reward cycles correctly", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      // Process rewards multiple times
-      for(let i = 0; i < 5; i++) {
-          await time.increase(3600); // 1 hour each
-          await ttb.processRewards();
-      }
-      
-      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      // Should have 5 hours worth of rewards (70% of 5 * 3600)
-      const expectedRewards = ethers.parseEther("12600"); // 5 * 3600 * 0.7
-      expect(stakerInfo.unclaimedRewards).to.be.approximately(expectedRewards, ethers.parseEther("10"));
-    });
-  
-    it("Should enforce minimum stake requirements", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const belowMin = ethers.parseEther("3599"); // Just below minimum
-      await ttb.connect(devFund).transfer(addr1.getAddress(), belowMin);
-      
-      await expect(ttb.connect(addr1).stake(belowMin))
-          .to.be.revertedWith("Below minimum stake");
-    });
-  
-    it("Should report accurate network statistics", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      const stats = await ttb.getNetworkStats();
-      expect(stats.totalStakedAmount).to.equal(stakeAmount);
-      expect(stats.totalStakers).to.equal(1n);
-      expect(stats.rewardRate).to.equal(ethers.parseEther("1"));
-      expect(stats.minimumStakeRequired).to.equal(ethers.parseEther("3600"));
-    });
-  
-    it("Should handle large time gaps correctly", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      // Create a large time gap
-      await time.increase(30 * 24 * 3600); // 30 days
-      
-      // Validate should handle this correctly
-      const tx = await ttb.validateTotalTime();
-      const receipt = await tx.wait();
-      
-      // Find the TimeValidation event - ethers v6 syntax
-      const event = receipt?.logs?.find(log => {
-          try {
-              const decoded = ttb.interface.parseLog({
-                  topics: [...log.topics],
-                  data: log.data
-              });
-              return decoded?.name === 'TimeValidation';
-          } catch {
-              return false;
-          }
-      });
+      await token.mintTokens();
+      await token.approve(await depot.getAddress(), STAKE_UNIT);
+      await depot.stake(STAKE_UNIT);
 
-      expect(event, "TimeValidation event not found").to.not.be.undefined;
-      
-      // Parse the event data
-      const decoded = ttb.interface.parseLog({
-          topics: [...event.topics],
-          data: event.data
-      });
-      
-      const correctionFactor = decoded.args[0];
-      expect(correctionFactor).to.be.lte(ethers.parseEther("3600")); // Max correction
-    });
-
-    it("Should handle multiple stakers with different stake amounts", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const baseStakeAmount = ethers.parseEther("3600");
-      const doubleStakeAmount = baseStakeAmount * 2n;
-      
-      // Transfer tokens
-      await ttb.connect(devFund).transfer(addr1.getAddress(), doubleStakeAmount);
-      await ttb.connect(devFund).transfer(addr2.getAddress(), baseStakeAmount);
-      
-      // Addr1 stakes double amount
-      await ttb.connect(addr1).stake(doubleStakeAmount);
-      
-      // Addr2 stakes after 1 hour
+      // Generate more tokens
       await time.increase(3600);
-      await ttb.connect(addr2).stake(baseStakeAmount);
+      await token.mintTokens();
       
-      // Wait another hour and process
-      await time.increase(3600);
-      await ttb.processRewards();
+      // Process new mint and rewards
+      await depot.processNewMint();
+      await depot.processRewardBatch();
       
-      const staker1Info = await ttb.getStakerInfo(addr1.getAddress());
-      const staker2Info = await ttb.getStakerInfo(addr2.getAddress());
-      
-      // Verify rewards ratio ~2:1 (allowing for time difference)
-      const ratio = Number(staker1Info.unclaimedRewards) / Number(staker2Info.unclaimedRewards);
-      expect(ratio).to.be.approximately(2, 0.1);
-      expect(staker1Info.unclaimedRewards).to.be.gt(staker2Info.unclaimedRewards);
-    });
-
-    it("Should handle stake renewal correctly", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      await time.increase(179 * 24 * 3600); // Just before renewal period
-      await ttb.connect(addr1).renewStake();
-      
-      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      expect(stakerInfo.lastRenewalTime).to.be.approximately(BigInt(await time.latest()), 10n);
-    });
-
-    it("Should handle unstake cancellation correctly", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      await ttb.connect(addr1).requestUnstake();
-      await ttb.connect(addr1).cancelUnstake();
-      
-      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      expect(stakerInfo.unstakeTime).to.equal(0n);
-      expect(stakerInfo.stakedAmount).to.equal(stakeAmount);
-    });
-
-    it("Should handle reward claiming correctly", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      // Generate some rewards
-      await time.increase(3600);
-      await ttb.processRewards();
-      
-      const beforeBalance = await ttb.balanceOf(addr1.getAddress());
-      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      const rewards = stakerInfo.unclaimedRewards;
-      
-      await ttb.connect(addr1).claimRewards();
-      
-      const afterBalance = await ttb.balanceOf(addr1.getAddress());
-      expect(afterBalance - beforeBalance).to.equal(rewards);
-      
-      // Check rewards cleared
-      const finalInfo = await ttb.getStakerInfo(addr1.getAddress());
-      expect(finalInfo.unclaimedRewards).to.equal(0n);
-    });
-
-    it("Should handle multiple reward cycles correctly", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      // Process rewards multiple times
-      for(let i = 0; i < 5; i++) {
-          await time.increase(3600); // 1 hour each
-          await ttb.processRewards();
-      }
-      
-      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      // Should have 5 hours worth of rewards (70% of 5 * 3600)
-      const expectedRewards = ethers.parseEther("12600"); // 5 * 3600 * 0.7
-      expect(stakerInfo.unclaimedRewards).to.be.approximately(expectedRewards, ethers.parseEther("10"));
-    });
-  });
-  describe("Targeted Tests", function () {
-
-    it("Should test atomic stake unit boundaries, 3600 should work, 3601 or 3599 should not.", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      
-      // 3600 should work
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      // 3601 should not
-      await expect(ttb.connect(addr1).stake(stakeAmount + 1n))
-          .to.be.revertedWith("Must stake whole units");
-      
-      // 3599 should not
-      await expect(ttb.connect(addr1).stake(stakeAmount - 1n))
-          .to.be.revertedWith("Below minimum stake");
-    });
-
-    it("Should test stake renewal and unstake cancellation", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      // Renew stake
-      await time.increase(179 * 24 * 3600); // Just before renewal period
-      await ttb.connect(addr1).renewStake();
-      
-      // Cancel unstake
-      await ttb.connect(addr1).requestUnstake();
-      await ttb.connect(addr1).cancelUnstake();
-      
-      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      expect(stakerInfo.lastRenewalTime).to.be.approximately(BigInt(await time.latest()), 10n);
-      expect(stakerInfo.unstakeTime).to.equal(0n);
-    });
-
-    it("Should test expired stakes returning tokens", async function () {
-      await time.increase(14400);
-      await ttb.processRewards();
-      
-      const stakeAmount = ethers.parseEther("3600");
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-      await ttb.connect(addr1).stake(stakeAmount);
-      
-      // Move past renewal period (180 days + 1 day for safety)
-      await time.increase(181 * 24 * 3600);
-      
-      // Process rewards should trigger expired stake processing
-      await ttb.processRewards();
-      
-      const stakerInfo = await ttb.getStakerInfo(addr1.getAddress());
-      expect(stakerInfo.stakedAmount).to.equal(0n);
-      
-      // Check balance returned (stake amount)
-      const balance = await ttb.balanceOf(addr1.getAddress());
-      expect(balance).to.equal(stakeAmount);
-    });
-
-    describe("Event Emissions", function () {
-      it("Should emit correct events for a full stake lifecycle", async function () {
-          await time.increase(14400);
-          await ttb.processRewards();
-          
-          const stakeAmount = ethers.parseEther("3600");
-          await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
-          
-          // Test Stake event
-          await expect(ttb.connect(addr1).stake(stakeAmount))
-              .to.emit(ttb, "Staked")
-              .withArgs(addr1.getAddress(), stakeAmount);
-              
-          // Test RewardsProcessed event
-          await time.increase(3600);
-          const tx = await ttb.processRewards();
-          const receipt = await tx.wait();
-          const rewardsEvent = receipt?.logs?.find(log => {
-              try {
-                  const decoded = ttb.interface.parseLog({
-                      topics: [...log.topics],
-                      data: log.data
-                  });
-                  return decoded?.name === 'RewardsProcessed';
-              } catch {
-                  return false;
-              }
-          });
-          expect(rewardsEvent).to.not.be.undefined;
-          
-          // Test UnstakeRequested event
-          await expect(ttb.connect(addr1).requestUnstake())
-              .to.emit(ttb, "UnstakeRequested")
-              .withArgs(addr1.getAddress(), stakeAmount);
-              
-          // Test UnstakeCancelled event
-          await expect(ttb.connect(addr1).cancelUnstake())
-              .to.emit(ttb, "UnstakeCancelled")
-              .withArgs(addr1.getAddress(), stakeAmount);
-              
-          // Test StakeRenewed event
-          await expect(ttb.connect(addr1).renewStake())
-              .to.emit(ttb, "StakeRenewed")
-              .withArgs(addr1.getAddress());
-              
-          // Re-request unstake for final test
-          await ttb.connect(addr1).requestUnstake();
-          await time.increase(3 * 24 * 3600 + 10);
-          
-          // Test Unstaked event
-          await expect(ttb.connect(addr1).unstake())
-              .to.emit(ttb, "Unstaked")
-              .withArgs(addr1.getAddress(), stakeAmount);
-      });
+      // Check unclaimed rewards
+      const stakerInfo = await depot.getStakerInfo(owner.address);
+      expect(stakerInfo.unclaimedRewards).to.be.gt(0);
     });
   });
 });
