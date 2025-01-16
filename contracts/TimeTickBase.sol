@@ -167,37 +167,34 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     // - TTB
 
     function stake(uint256 amount) external nonReentrant whenNotPaused {
-        // Check if staking is enabled
-        require(stakingEnabled, "Staking not enabled");
-        // Check if staked amount is above minimum
-        require(amount >= minimumStake, "Below minimum stake");
-        // Check if amount is whole units
-        require(amount % STAKE_UNIT == 0, "Must stake whole units");
-        
-        // Check and process any expired stakes before adding new ones
-        // This is to prevent dead stakes
-        // And to clean up the staker set
-        _processExpiredStakes();
-        
-        // First approve the contract to take tokens
-        _approve(msg.sender, address(this), amount);
-        // Then do the transfer
-        _transfer(msg.sender, address(this), amount);
-        
-        Staker storage staker = stakers[msg.sender];
-        require(staker.unstakeTime == 0, "Unstake pending");
-        
-        // Update stake
-        staker.stakedAmount += amount;
-        staker.lastRenewalTime = block.timestamp;
-        totalStaked += amount;
-        
-        // Add to staker set if new staker
-        if (staker.stakedAmount == amount) { // Previously zero
-            stakerSet.add(msg.sender);
-        }
-        
-        emit Staked(msg.sender, amount);
+    // Basic validations
+    require(stakingEnabled, "Staking not enabled");
+    require(amount >= minimumStake, "Below minimum stake");
+    require(amount % STAKE_UNIT == 0, "Must stake whole units");
+    
+    // Process any expired stakes before staking (this may be overkill and expensive, revisit later)
+    _processExpiredStakes();
+    
+    // Update staker info
+    Staker storage staker = stakers[msg.sender];
+    require(staker.unstakeTime == 0, "Unstake pending");
+
+    // Transfer tokens from user - they must have approved first
+    bool success = transferFrom(msg.sender, address(this), amount);
+    require(success, "Transfer failed");
+    
+    // Update stake
+    staker.stakedAmount += amount;
+    staker.lastRenewalTime = block.timestamp;
+    totalStaked += amount;
+    
+    // Add to staker set if new stake
+    if (staker.stakedAmount == amount) {
+        stakerSet.add(msg.sender);
+    }
+    
+    // Emit event
+    emit Staked(msg.sender, amount);
     }
     
     // Request unstake
