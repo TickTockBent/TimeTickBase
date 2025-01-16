@@ -25,6 +25,17 @@ describe("TimeTickBase", function () {
     return after - before;
   };
 
+  const setupStakeFor = async (
+    ttb: TimeTickBase, 
+    devFund: SignerWithAddress, 
+    staker: SignerWithAddress, 
+    amount: bigint
+  ) => {
+    const contractAddress = await ttb.getAddress();
+    await ttb.connect(devFund).transfer(staker.getAddress(), amount);
+    await ttb.connect(staker).approve(contractAddress, amount);
+  };
+
   beforeEach(async function () {
     // Get signers
     [owner, devFund, addr1, addr2] = await ethers.getSigners();
