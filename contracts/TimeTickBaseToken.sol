@@ -11,6 +11,9 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
     uint256 public immutable genesisTime;
     uint256 public lastMintTime;
     uint256 public constant MINIMUM_MINT_SECONDS = 15;
+
+    // Reference to the TimeTickBaseDepot contract
+    ITimeTickBaseDepot public depot;
     
     // Admin control for emergency pause only
     bool public mintingEnabled;
@@ -39,6 +42,11 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
     
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    function setDepot(address _depot) external onlyOwner {
+        require(_depot != address(0), "Invalid depot address");
+        depot = ITimeTickBaseDepot(_depot);
     }
     
     // Core minting function - anyone can call
