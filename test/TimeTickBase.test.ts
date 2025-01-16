@@ -49,14 +49,24 @@ describe("TimeTickBase", function () {
   
       const stakeAmount = ethers.parseEther("3600");
       const contractAddress = await ttb.getAddress();
+      const addr1Address = await addr1.getAddress();
       
       // Transfer tokens to addr1
-      await ttb.connect(devFund).transfer(addr1.getAddress(), stakeAmount);
+      await ttb.connect(devFund).transfer(addr1Address, stakeAmount);
       
-      // Should fail without approval
+      // First verify it fails without approval
       await expect(ttb.connect(addr1).stake(stakeAmount))
           .to.be.revertedWith("ERC20: insufficient allowance");
-  });
+      
+      // Now do proper approval and stake
+      const addr1Contract = ttb.connect(addr1);
+      await addr1Contract.approve(contractAddress, stakeAmount);
+      await addr1Contract.stake(stakeAmount);
+  
+      // Verify stake succeeded
+      const stakerInfo = await ttb.getStakerInfo(addr1Address);
+      expect(stakerInfo.stakedAmount).to.equal(stakeAmount);
+    });
 
     it("Should distribute rewards correctly via processRewards", async function () {
       // Initial stake setup
