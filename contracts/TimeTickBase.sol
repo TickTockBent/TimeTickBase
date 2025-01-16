@@ -180,7 +180,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     require(staker.unstakeTime == 0, "Unstake pending");
 
     // Transfer tokens from user - they must have approved first
-    bool success = transferFrom(msg.sender, address(this), amount);
+    bool success = super.transferFrom(msg.sender, address(this), amount);
     require(success, "Transfer failed");
     
     // Update stake
