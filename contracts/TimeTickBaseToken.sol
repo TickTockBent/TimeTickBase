@@ -18,6 +18,9 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
     // Events
     event TokensMinted(uint256 amount, uint256 timestamp);
     event TimeValidation(int256 correctionFactor, uint256 timestamp);
+    event MintingToggled(bool enabled);
+    event ContractPaused(address indexed by);
+    event ContractUnpaused(address indexed by);
     
     constructor() ERC20("TimeTickBase", "TTB") Ownable(msg.sender) {
         genesisTime = block.timestamp;
