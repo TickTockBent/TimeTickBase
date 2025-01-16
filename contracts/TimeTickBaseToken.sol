@@ -19,7 +19,7 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
     // Reference to the TimeTickBaseDepot contract
     address public depot;
 
-    // Admin control for pausing/unpausing and setting depot
+    // Admin control
     bool public mintingEnabled;
 
     // Events
@@ -30,11 +30,17 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
     event ContractPaused(address indexed by);
     event ContractUnpaused(address indexed by);
 
-
     constructor() ERC20("TimeTickBase", "TTB") Ownable(msg.sender) {
         genesisTime = block.timestamp;
         lastMintTime = block.timestamp;
         mintingEnabled = true; // Start enabled
+    }
+
+    // Modifiers
+    modifier validMintingTime() {
+        require(block.timestamp > lastMintTime, "Already processed");
+        require(block.timestamp - lastMintTime >= MINIMUM_MINT_SECONDS, "Minimum mint interval not met");
+        _;
     }
 
     // Admin functions
@@ -60,36 +66,26 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
     }
 
     // Minting function - ONLY callable by the Depot
-    function mint() external nonReentrant whenNotPaused {
+    function mint() external nonReentrant whenNotPaused validMintingTime {
         require(msg.sender == depot, "Only depot can mint");
         require(mintingEnabled, "Minting not enabled");
-        require(block.timestamp > lastMintTime, "Already processed");
 
-        // Calculate elapsed time and ensure minimum time has passed
-        uint256 elapsedTime = block.timestamp - lastMintTime;
-        require(elapsedTime >= MINIMUM_MINT_SECONDS, "Minimum mint interval not met");
+        // Calculate and mint new tokens
+        uint256 tokensToMint = (block.timestamp - lastMintTime) * 1 ether;
 
-        // Calculate and mint new tokens (fixed rate)
-        uint256 tokensToMint = elapsedTime * 1 ether;
-
-        _mint(address(this), tokensToMint); // Mint to THIS contract
+        _mint(address(this), tokensToMint);
         lastMintTime = block.timestamp;
 
         emit TokensMinted(tokensToMint, block.timestamp);
     }
 
     // Validation function to correct any drift - ONLY callable by the Depot
-    function validateTotalTime() external nonReentrant whenNotPaused returns (int256) {
+    function validateTotalTime() external nonReentrant whenNotPaused validMintingTime returns (int256) {
         require(msg.sender == depot, "Only depot can call this function");
         require(mintingEnabled, "Minting not enabled");
-        require(block.timestamp > lastMintTime, "Already processed");
-
-        // Ensure minimum time has passed
-        uint256 elapsedTime = block.timestamp - lastMintTime;
-        require(elapsedTime >= MINIMUM_MINT_SECONDS, "Minimum mint interval not met");
 
         // Calculate normal mint amount
-        uint256 normalMint = elapsedTime * 1 ether;
+        uint256 normalMint = (block.timestamp - lastMintTime) * 1 ether;
 
         // Calculate expected total based on time since genesis
         uint256 totalElapsedTime = block.timestamp - genesisTime;
@@ -99,12 +95,16 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
         uint256 futureSupply = totalSupply() + normalMint;
         int256 correction = int256(expectedTotal) - int256(futureSupply);
 
-        // Limit corrections (same logic as before)
+        // Limit corrections (using unchecked where safe)
         if (correction > int256(3600 ether)) {
             correction = int256(3600 ether);
         }
-        if (correction < 0 && uint256(-correction) > normalMint) {
-            correction = -int256(normalMint);
+        if (correction < 0) {
+            unchecked { // No underflow possible here as correction is negative and normalMint is positive
+                if (uint256(-correction) > normalMint) {
+                    correction = -int256(normalMint);
+                }
+            }
         }
 
         // Mint tokens with correction to THIS contract
