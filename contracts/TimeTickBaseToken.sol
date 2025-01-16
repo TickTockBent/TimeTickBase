@@ -6,6 +6,10 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
+interface ITimeTickBaseDepot {
+    function processNewMint() external;
+}
+
 contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
     // Immutable time tracking
     uint256 public immutable genesisTime;
