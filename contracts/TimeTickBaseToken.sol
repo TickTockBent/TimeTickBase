@@ -53,6 +53,7 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
     function mintTokens() external nonReentrant whenNotPaused {
         require(mintingEnabled, "Minting not enabled");
         require(block.timestamp > lastMintTime, "Already processed");
+        require(address(depot) != address(0), "Depot not set");
         
         // Calculate elapsed time and ensure minimum time has passed
         uint256 elapsedTime = block.timestamp - lastMintTime;
@@ -61,8 +62,11 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
         // Calculate and mint new tokens (1 per second)
         uint256 tokensToMint = elapsedTime * 1 ether; // 1 token per second
         
-        _mint(address(this), tokensToMint);
+        _mint(address(depot), tokensToMint);
         lastMintTime = block.timestamp;
+        
+        // Process rewards immediately
+        depot.processNewMint();
         
         emit TokensMinted(tokensToMint, block.timestamp);
     }
