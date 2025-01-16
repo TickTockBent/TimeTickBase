@@ -15,7 +15,6 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
     uint256 public immutable genesisTime;
     uint256 public lastMintTime;
     uint256 public constant MINIMUM_MINT_SECONDS = 15;
-    uint256 public constant MINT_RATE_PER_SECOND = 1 ether; // Fixed mint rate
 
     // Reference to the TimeTickBaseDepot contract
     address public depot;
@@ -71,7 +70,7 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
         require(elapsedTime >= MINIMUM_MINT_SECONDS, "Minimum mint interval not met");
 
         // Calculate and mint new tokens (fixed rate)
-        uint256 tokensToMint = elapsedTime * MINT_RATE_PER_SECOND;
+        uint256 tokensToMint = elapsedTime * 1 ether;
 
         _mint(address(this), tokensToMint); // Mint to THIS contract
         lastMintTime = block.timestamp;
@@ -90,11 +89,11 @@ contract TimeTickBaseToken is ERC20, ReentrancyGuard, Ownable, Pausable {
         require(elapsedTime >= MINIMUM_MINT_SECONDS, "Minimum mint interval not met");
 
         // Calculate normal mint amount
-        uint256 normalMint = elapsedTime * MINT_RATE_PER_SECOND;
+        uint256 normalMint = elapsedTime * 1 ether;
 
         // Calculate expected total based on time since genesis
         uint256 totalElapsedTime = block.timestamp - genesisTime;
-        uint256 expectedTotal = totalElapsedTime * MINT_RATE_PER_SECOND;
+        uint256 expectedTotal = totalElapsedTime * 1 ether;
 
         // Calculate correction needed
         uint256 futureSupply = totalSupply() + normalMint;
