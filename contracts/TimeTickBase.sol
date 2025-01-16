@@ -33,11 +33,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     // Precision is used for calculations (might be overkill)
     // I'll think about it later
     // - TTB
-    
-    // This will be set at deployment
-    uint256 public immutable genesisTime;
-    // This is set each time rewards are processed
-    uint256 public lastMintTime;
+
     // This is the atomic stake unit, should never change - 3600 TTB = 1 hour
     uint256 public constant STAKE_UNIT = 3600 ether;  // 1 stake = 3600 TTB
     // This is the time required to wait before unstaking - 3 days
