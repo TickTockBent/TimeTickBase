@@ -66,14 +66,18 @@ describe("TimeTickBase", function () {
       
       console.log("Contract address:", contractAddress);
       console.log("Addr1 address:", addr1Address);
-      console.log("Balance before:", await ttb.balanceOf(addr1Address));
-      console.log("Allowance before:", await ttb.allowance(addr1Address, contractAddress));
       
-      // Do approval
-      await ttb.connect(addr1).approve(contractAddress, stakeAmount);
+      // Check allowance BEFORE approve
+      const preAllowance = await ttb.allowance(addr1Address, contractAddress);
+      console.log("Pre-approval check - actual allowance:", preAllowance);
       
-      console.log("Allowance after approve:", await ttb.allowance(addr1Address, contractAddress));
-      console.log("Connected address:", await addr1.getAddress());
+      // Do approval with Ethers v6 syntax
+      const approveTx = await ttb.connect(addr1).approve(contractAddress, stakeAmount);
+      await approveTx.wait(); // Make sure approval is confirmed
+      
+      // Check allowance AFTER approve
+      const postAllowance = await ttb.allowance(addr1Address, contractAddress);
+      console.log("Post-approval check - actual allowance:", postAllowance);
       
       // Try to stake
       await ttb.connect(addr1).stake(stakeAmount);
