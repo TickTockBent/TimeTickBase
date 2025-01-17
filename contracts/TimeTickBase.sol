@@ -42,6 +42,8 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     uint256 public constant RENEWAL_PERIOD = 180 days;
     // This is the precision used for calculations - 1e18
     uint256 private constant PRECISION = 1e18;
+    uint256 public genesisTime;
+    uint256 public lastMintTime;
     
     // Distribution constants
     // Dev share is the percentage of rewards going to the dev fund
