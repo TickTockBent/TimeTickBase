@@ -102,6 +102,8 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     event MinimumStakeUpdated(uint256 newMinimum);
     event StakingToggled(bool enabled);
     event RewardsToggled(bool enabled);
+    event DebugStaking(string message, uint256 value);
+    event DebugStaking(string message);
 
     constructor(address _devFundAddress) ERC20("TimeTickBase", "TTB") Ownable(msg.sender) {
         require(_devFundAddress != address(0), "Invalid dev fund address");
@@ -165,7 +167,18 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     // - TTB
 
     function stake(uint256 amount) external nonReentrant whenNotPaused {
-    // Basic validations
+    emit DebugStaking("Starting stake with amount", amount);
+    emit DebugStaking("STAKE_UNIT is", STAKE_UNIT);
+    emit DebugStaking("minimumStake is", minimumStake);
+    
+    require(stakingEnabled, "Staking not enabled");
+    emit DebugStaking("Staking is enabled");
+    
+    require(amount >= minimumStake, "Below minimum stake");
+    emit DebugStaking("Amount above minimum");
+    
+    require(amount % STAKE_UNIT == 0, "Must stake whole units");
+    emit DebugStaking("Amount is whole units");
     require(stakingEnabled, "Staking not enabled");
     require(amount >= minimumStake, "Below minimum stake");
     require(amount % STAKE_UNIT == 0, "Must stake whole units");
