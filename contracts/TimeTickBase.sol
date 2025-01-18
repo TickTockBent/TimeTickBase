@@ -6,66 +6,23 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "hardhat/console.sol";
 
 contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
 
-    // Some people asked why I named it TimeTickBase
-    // It's because it has the same initials as my username, TTB
-    // That's the main reason
-    // But also it's a time-based token
-    // And TickBase sounds cool
-    // Also TickBase means 'reference time unit'
-    // And I like the sound of that
-    // So I combined them
-    // TimeTickBase > TTB
-    // I'm not very creative with names, sorry
-    // But I hope you like it anyway
-    // - TTB
-
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    // Core state
-    // Genesis time is when the contract was deployed
-    // Last mint time is when the last reward was processed
-    // Stake unit is the amount of TTB required to stake
-    // Unstake delay is the time required to wait before unstaking
-    // Renewal period is the time required to renew a stake
-    // Precision is used for calculations (might be overkill)
-    // I'll think about it later
-    // - TTB
-
-    // This is the atomic stake unit, should never change - 3600 TTB = 1 hour
     uint256 public constant STAKE_UNIT = 3600 ether;  // 1 stake = 3600 TTB
-    // This is the time required to wait before unstaking - 3 days
     uint256 public constant UNSTAKE_DELAY = 3 days;
-    // This is the time required to renew a stake - 180 days
     uint256 public constant RENEWAL_PERIOD = 180 days;
-    // This is the precision used for calculations - 1e18
     uint256 private constant PRECISION = 1e18;
     uint256 public genesisTime;
     uint256 public lastMintTime;
-    
-    // Distribution constants
-    // Dev share is the percentage of rewards going to the dev fund
-    // Staker share is the percentage of rewards going to stakers
-    // The sum of both should be 100%
-    // This is probably obvious but I'm explaining it anyway
-    // - TTB
-
     uint256 private constant DEV_SHARE = 30;   
     uint256 private constant STAKER_SHARE = 70;
 
     bool public rewardsEnabled;
     bool public stakingEnabled;
-
-    // Staker struct
-    // Stakers are tracked by address
-    // Stakers have a staked amount
-    // Stakers have unclaimed rewards
-    // Stakers have a last renewal time
-    // Stakers have an unstake time
-    // Stakers are stored in a set for easy tracking
-    // - TTB
 
     struct Staker {
         uint256 stakedAmount;          // Amount of TTB staked
@@ -79,16 +36,7 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     uint256 public minimumStake;
     address public immutable devFundAddress;
 
-    // Staker tracking
     EnumerableSet.AddressSet private stakerSet;
-    
-    // Events
-    // I like events, they're fun
-    // And they're useful for debugging
-    // And for tracking contract activity
-    // So I added a bunch of events
-    // I hope you like them
-    // - TTB
 
     event Staked(address indexed staker, uint256 amount);
     event UnstakeRequested(address indexed staker, uint256 amount);
@@ -112,23 +60,9 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
         lastMintTime = block.timestamp;
         minimumStake = STAKE_UNIT;  // Start with 1 stake minimum
 
-        // These will be set to true at deployment
-        // But I'm setting them to false here for clarity
-        // I like to be explicit with these things
-        // It's a good habit, I think
-        // - TTB
-
         rewardsEnabled = false;
         stakingEnabled = false;
     }
-
-    // Admin functions
-    // These are used to enable or disable rewards and staking
-    // And set the minimum stake required
-    // This is to prevent abuse or to pause the contract in case of issues
-    // I'm not planning to use these functions
-    // But I'm adding them for safety
-    // - TTB
 
     function setMinimumStake(uint256 _newMinimum) external onlyOwner {
         require(_newMinimum >= STAKE_UNIT, "Below stake unit");
@@ -154,69 +88,60 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     function unpause() external onlyOwner {
         _unpause();
     }
-    
-    // Staking functions
-    // Staking requires a minimum amount of TTB
-    // Staking is done in whole units of STAKE_UNIT
-    // Staking is subject to unstake delay and renewal period
-    // Staking rewards are processed periodically
-    // Staking rewards are minted to the contract
-    // Staking rewards are claimed by stakers and distributed to dev fund
-    // Staking rewards are distributed to stakers based on their share of total staked
-    // So claim your rewards regularly to keep the rewards flowing
-    // - TTB
 
     function stake(uint256 amount) external nonReentrant whenNotPaused {
-    emit DebugStaking("Starting stake with amount", amount);
-    emit DebugStaking("STAKE_UNIT is", STAKE_UNIT);
-    emit DebugStaking("minimumStake is", minimumStake);
-    
-    require(stakingEnabled, "Staking not enabled");
-    emit DebugStaking("Staking is enabled");
-    
-    require(amount >= minimumStake, "Below minimum stake");
-    emit DebugStaking("Amount above minimum");
-    
-    require(amount % STAKE_UNIT == 0, "Must stake whole units");
-    emit DebugStaking("Amount is whole units");
-    require(stakingEnabled, "Staking not enabled");
-    require(amount >= minimumStake, "Below minimum stake");
-    require(amount % STAKE_UNIT == 0, "Must stake whole units");
-    
-    // Process any expired stakes before staking (this may be overkill and expensive, revisit later)
-    _processExpiredStakes();
-    
-    // Update staker info
-    Staker storage staker = stakers[msg.sender];
-    require(staker.unstakeTime == 0, "Unstake pending");
+        emit DebugStaking("Stake called with amount", amount);
+        console.log("Staking called by: ", msg.sender);
+        
+        require(stakingEnabled, "Staking not enabled");
+        emit DebugStaking("Staking is enabled");
+        console.log("Staking is enabled");
 
-    // Transfer tokens from user - they must have approved first
-    bool success = super.transferFrom(msg.sender, address(this), amount);
-    require(success, "Transfer failed");
-    
-    // Update stake
-    staker.stakedAmount += amount;
-    staker.lastRenewalTime = block.timestamp;
-    totalStaked += amount;
-    
-    // Add to staker set if new stake
-    if (staker.stakedAmount == amount) {
-        stakerSet.add(msg.sender);
+        require(amount >= minimumStake, "Below minimum stake");
+        emit DebugStaking("Amount meets minimum stake");
+        console.log("Amount meets minimum stake");
+        
+        require(amount % STAKE_UNIT == 0, "Must stake whole units");
+        emit DebugStaking("Amount is valid stake unit");
+        console.log("Amount is valid stake unit");
+        
+        Staker storage staker = stakers[msg.sender];
+        require(staker.unstakeTime == 0, "Unstake pending");
+        emit DebugStaking("No unstake pending");
+        console.log("No unstake pending");
+        
+        // Check balance before transfer
+        require(balanceOf(msg.sender) >= amount, "Insufficient balance");
+        emit DebugStaking("Balance check passed");
+        console.log("Balance check passed");
+        
+        // Check allowance before transfer
+        require(allowance(msg.sender, address(this)) >= amount, "Insufficient allowance");
+        emit DebugStaking("Allowance check passed");
+        console.log("Allowance check passed");
+        
+        console.log("Balance before transfer:", balanceOf(msg.sender));
+        console.log("Amount to transfer:", amount);
+        console.log("Current allowance:", allowance(msg.sender, address(this)));
+        emit DebugStaking("Balance before transfer", balanceOf(msg.sender));
+        emit DebugStaking("Amount to transfer", amount);
+        emit DebugStaking("Current allowance", allowance(msg.sender, address(this)));
+        _spendAllowance(msg.sender, address(this), amount);
+        _transfer(msg.sender, address(this), amount);
+        console.log("Balance after transfer:", balanceOf(msg.sender));
+        emit DebugStaking("Balance after transfer", balanceOf(msg.sender));
+        
+        staker.stakedAmount += amount;
+        staker.lastRenewalTime = block.timestamp;
+        totalStaked += amount;
+        
+        if (staker.stakedAmount == amount) {
+            stakerSet.add(msg.sender);
+        }
+        
+        emit Staked(msg.sender, amount);
     }
     
-    // Emit event
-    emit Staked(msg.sender, amount);
-    }
-    
-    // Request unstake
-    // Unstake is subject to delay (3 days)
-    // IDK why you'd want to unstake but it's here if you need it
-    // Maybe you need the tokens for something else
-    // Or maybe you're just tired of staking
-    // Or maybe you're just testing the contract
-    // Whatever the reason, it's your choice
-    // - TTB
-
     function requestUnstake() external nonReentrant {
         Staker storage staker = stakers[msg.sender];
         require(staker.stakedAmount > 0, "No stake found");
@@ -227,40 +152,19 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
         emit UnstakeRequested(msg.sender, staker.stakedAmount);
     }
     
-    // Complete unstake after delay
-    // Unstake is only allowed after the delay period
-    // Unstake returns staked tokens and pending rewards
-    // The delay is to prevent abuse
-    // Maybe I should add a cancel unstake function
-    // But I'm not sure if it's necessary
-    // I'll think about it
-    // - TTB
-
     function unstake() external nonReentrant {
         Staker storage staker = stakers[msg.sender];
         require(staker.unstakeTime > 0 && block.timestamp >= staker.unstakeTime, "Not ready");
         
         uint256 amount = staker.stakedAmount;
-        
-        // Clear stake
-        // This removes the entire stake
-        // And will then return the tokens
-        // It will also remove the staker from the staker set
-        // and force claim any pending rewards
-        // I will probably let people partially unstake in the future
-        // So long as it doesn't bring them below the minimum stake
-        // But for now, it's all or nothing
-        // - TTB
 
         totalStaked -= amount;
         staker.stakedAmount = 0;
         staker.unstakeTime = 0;
         staker.lastRenewalTime = 0;
         
-        // Remove from staker set
         stakerSet.remove(msg.sender);
         
-        // Force claim any pending rewards
         if (staker.unclaimedRewards > 0) {
             uint256 rewards = staker.unclaimedRewards;
             staker.unclaimedRewards = 0;
@@ -268,38 +172,20 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
             emit RewardsClaimed(msg.sender, rewards);
         }
         
-        // Return staked tokens
         _transfer(address(this), msg.sender, amount);
         
         emit Unstaked(msg.sender, amount);
     }
     
-    // Cancel unstake request
-    // This is to prevent unstake if you change your mind
-    // Or if you accidentally requested unstake
-    // I thought about it and decided to add this function
-    // It's a good way to prevent mistakes
-    // And to keep the contract clean
-    // - TTB
-
     function cancelUnstake() external nonReentrant {
         Staker storage staker = stakers[msg.sender];
         require(staker.unstakeTime > 0, "No unstake request");
         require(staker.stakedAmount > 0, "No stake found");
         
-        // Reset unstake time
         staker.unstakeTime = 0;
         
         emit UnstakeCancelled(msg.sender, staker.stakedAmount);
     }
-
-    // Renew stake
-    // Stakers can renew their stake before it expires
-    // This is to prevent dead stakes
-    // And to keep the rewards flowing to active stakers
-    // Rewards are claimed on renewal to keep things simple
-    // And keep the contract accounting clean
-    // - TTB
 
     function renewStake() external nonReentrant {
         Staker storage staker = stakers[msg.sender];
@@ -317,13 +203,6 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
         staker.lastRenewalTime = block.timestamp;
         emit StakeRenewed(msg.sender);
     }
-    
-    // Claim rewards
-    // Rewards are claimed separately from staking
-    // This is to keep the contract clean and simple
-    // And to prevent any issues with staking
-    // Rewards are minted to the contract periodically
-    // Rewards are claimed to the staker's address
 
     function claimRewards() external nonReentrant {
         Staker storage staker = stakers[msg.sender];
@@ -335,13 +214,6 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
         
         emit RewardsClaimed(msg.sender, rewards);
     }
-    
-    // Process any expired stakes
-    // This is done before any reward processing
-    // Expired stakes are returned to stakers
-    // This is mostly here to prevent dead stakes
-    // Proof of life, if you will
-    // It's also a good way to clean up the staker set
 
     function _processExpiredStakes() internal {
         if (stakerSet.length() == 0) return;
@@ -358,16 +230,13 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
                 uint256 amount = staker.stakedAmount;
                 uint256 rewards = staker.unclaimedRewards;
                 
-                // Clear stake
                 totalStaked -= amount;
                 staker.stakedAmount = 0;
                 staker.unclaimedRewards = 0;
                 staker.lastRenewalTime = 0;
                 
-                // Remove from staker set
                 stakerSet.remove(stakerAddr);
                 
-                // Return tokens (stake + rewards)
                 _transfer(address(this), stakerAddr, amount + rewards);
                 
                 emit StakeExpired(stakerAddr, amount, rewards);
@@ -375,53 +244,29 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
         }
     }
     
-    // Regular reward processing - public interface
-    // This is called by anyone to process rewards
-    // I decided to leave this public
-    // So anyone can call it if they want to
-    // It's a public service, if you will
-    // And it's a good way to keep the rewards flowing
-    // You can spam it, but you'll just waste gas
-    // So don't do that, it's not nice
-    // - TTB
-
     function processRewards() external nonReentrant whenNotPaused {
         require(rewardsEnabled, "Rewards not enabled");
         _processRewardsAndValidation(0);
     }
     
-    // Internal implementation
     function _processRewardsAndValidation(int256 correctionFactor) internal {
         require(block.timestamp > lastMintTime, "Already processed");
         
-        // First process any expired stakes
         _processExpiredStakes();
         
-        // Calculate tokens to mint
         uint256 elapsedTime = block.timestamp - lastMintTime;
-        uint256 tokensToMint = elapsedTime * 1 ether; // 1 token per second
+        uint256 tokensToMint = elapsedTime * 1 ether;
         
-        // Apply correction if any  
         if (correctionFactor > 0) {
             tokensToMint += uint256(correctionFactor);
         } else if (correctionFactor < 0) {
             tokensToMint -= uint256(-correctionFactor);
         }
         
-        // Mint new tokens to this contract
         _mint(address(this), tokensToMint);
         
-        // Calculate shares
         uint256 devRewards = (tokensToMint * DEV_SHARE) / 100;
         uint256 stakerRewards = tokensToMint - devRewards;
-        
-        // Distribute staker share if there are stakers
-        // 70% go to stakers, 30% go to dev fund
-        // This is the default distribution
-        // If there are no stakers, all rewards go to dev fund
-        // But there should always be stakers
-        // Except at genesis, but that's a special case
-        // - TTB
         
         if (totalStaked > 0) {
             address[] memory _stakers = stakerSet.values();
@@ -437,16 +282,8 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
                 }
             }
         } else {
-            // If no stakers, add staker share to dev rewards
             devRewards += stakerRewards;
         }
-
-        // Send dev share (30% if stakers exist, 100% if no stakers)
-        // Dev fund gets full emissions if no stakers
-        // This is mostly to fund the genesis fountain
-        // There should never be no stakers, except at genesis
-        // But this will catch any edge cases as well
-        // - TTB
 
         _transfer(address(this), devFundAddress, devRewards);
         
@@ -456,28 +293,21 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
     }
 
     function validateTotalTime() external nonReentrant returns (int256) {
-        // First calculate how many tokens would be minted normally
         uint256 elapsedTime = block.timestamp - lastMintTime;
         uint256 normalMint = elapsedTime * 1 ether;
 
-        // Calculate what total supply should be after this mint
         uint256 expectedSupply = totalSupply() + normalMint;
         
-        // Calculate what supply SHOULD be based on genesis time
         uint256 totalElapsedTime = block.timestamp - genesisTime;
         uint256 correctSupply = totalElapsedTime * 1 ether;
         
-        // Correction is the difference between what we'd have after normal mint
-        // and what we should have based on total elapsed time
         int256 correction = int256(correctSupply) - int256(expectedSupply);
         
-        // Rest of limits remain the same...
         if (correction > int256(3600 ether)) {
             correction = int256(3600 ether);
         }
         
         if (correction < 0) {
-            // Limit negative correction to not exceed normal mint
             if (uint256(-correction) > normalMint) {
                 correction = -int256(normalMint);
             }
@@ -488,52 +318,6 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
                
         return correction;
     }
-
-    // Why are you still reading this?
-    // Go stake some TTB and earn rewards
-    // Or go build something cool, that's the point of this
-    // I'm just here to help you get started
-    // - TTB
-
-    // P.S. I'm not a financial advisor
-    // This is not financial advice
-    // I'm just a developer who likes to build stuff
-    // So please don't sue me if you lose money
-    // I'm not responsible for your decisions
-    // You're a grown-up, you can make your own choices
-    // - TTB
-
-    // P.P.S. If you have any questions, feel free to ask
-    // I'm happy to help if I can
-    // contact@timetickbase.com
-    // - TTB
-
-    // P.P.P.S. I'm not planning to die
-    // I'm just saying you never know
-    // - TTB
-
-    // P.P.P.P.S. I'm not planning to hand this off to anyone either
-    // I'm just saying you never know
-    // - TTB    
-
-    // P.P.P.P.P.S. You're still reading this?
-    // Seriously, go do something else
-    // But thanks for reading this far
-    // I appreciate it
-    // Here's a cookie for you 🍪
-    // And an ascii cat
-    //  /\_/\
-    // ( o.o ) meow
-    //  > ^ <
-    // - TTB
-
-    // These functions gets all the staker info
-    // It will be used for the front-end
-    // So people can see their staking status
-    // And claim rewards
-    // And renew stakes
-    // And all that good stuff
-    // - TTB
 
     function getStakerInfo(address staker) external view returns (
         uint256 stakedAmount,
@@ -558,12 +342,4 @@ contract TimeTickBase is ERC20, ReentrancyGuard, Ownable, Pausable {
             minimumStake
         );
     }
-
-    // Really though, go do something else
-    // I'm just rambling at this point
-    // I just finished the first draft of this contract
-    // And I'm feeling a bit loopy
-    // But I'm happy with how it turned out
-    // And I'm excited to test it
-    // - TTB 01/07/2025
 }
