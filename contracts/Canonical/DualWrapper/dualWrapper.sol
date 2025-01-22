@@ -77,6 +77,7 @@ contract TTBDualWrapper_V2 is Ownable, ReentrancyGuard {
         require(ttbAmount > 0, "Amount must be > 0");
         
         uint256 tokenAmount = ttbAmount * RATIO_A;
+        require(tokenAmount / RATIO_A == ttbAmount, "Ratio overflow");
         
         require(TTB.transferFrom(msg.sender, address(this), ttbAmount), "TTB transfer failed");
         TOKEN_A.mint(msg.sender, tokenAmount);
@@ -102,6 +103,7 @@ contract TTBDualWrapper_V2 is Ownable, ReentrancyGuard {
         require(amount > 0, "Amount must be > 0");
         
         uint256 ttbNeeded = (amount + RATIO_B - 1) / RATIO_B;
+        require(ttbNeeded * RATIO_B >= amount, "Ratio calculation error");
         
         require(TTB.transferFrom(msg.sender, address(this), ttbNeeded), "TTB transfer failed");
         TOKEN_B.mint(to, amount);
